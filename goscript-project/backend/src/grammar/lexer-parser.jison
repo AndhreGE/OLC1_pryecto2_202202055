@@ -46,12 +46,16 @@ function decodeRune(text) {
 
 %token FUNC VAR FMT PRINTLN TYPE_INT TYPE_FLOAT64 TYPE_STRING TYPE_BOOL TYPE_RUNE
 %token IDENTIFIER STRING INT FLOAT BOOL RUNE DECLARE EOF
-%token EQ NEQ GTE LTE
+%token EQ NEQ GTE LTE AND OR NOT IF ELSE FOR INC DEC BREAK CONTINUE RETURN
+%token SWITCH CASE DEFAULT
 
-%left EQ NEQ '<' '>' GTE LTE
+%left OR
+%left AND
+%left EQ NEQ
+%left '<' '>' GTE LTE
 %left '+' '-'
 %left '*' '/' '%'
-%right UMINUS
+%right NOT UMINUS
 
 %start program
 
@@ -66,6 +70,15 @@ function decodeRune(text) {
 "var"                                           return 'VAR';
 "fmt"                                           return 'FMT';
 "Println"                                       return 'PRINTLN';
+"if"                                            return 'IF';
+"else"                                          return 'ELSE';
+"for"                                           return 'FOR';
+"break"                                         return 'BREAK';
+"continue"                                      return 'CONTINUE';
+"return"                                        return 'RETURN';
+"switch"                                        return 'SWITCH';
+"case"                                          return 'CASE';
+"default"                                       return 'DEFAULT';
 
 "int"                                           return 'TYPE_INT';
 "float64"                                       return 'TYPE_FLOAT64';
@@ -80,6 +93,12 @@ function decodeRune(text) {
 "!="                                            return 'NEQ';
 ">="                                            return 'GTE';
 "<="                                            return 'LTE';
+"&&"                                            return 'AND';
+"||"                                            return 'OR';
+"++"                                            return 'INC';
+"--"                                            return 'DEC';
+"!"                                             return 'NOT';
+":"                                             return ':';
 "="                                             return '=';
 ","                                             return ',';
 ";"                                             return ';';
@@ -167,11 +186,201 @@ statement
         { $$ = $1; }
     | assignment
         { $$ = $1; }
+    | if_stmt
+        { $$ = $1; }
+    | for_stmt
+        { $$ = $1; }
+    | switch_stmt
+        { $$ = $1; }
+    | inc_stmt
+        { $$ = $1; }
+    | dec_stmt
+        { $$ = $1; }
+    | break_stmt
+        { $$ = $1; }
+    | continue_stmt
+        { $$ = $1; }
+    | return_stmt
+        { $$ = $1; }
     ;
 
 println_stmt
     : FMT '.' PRINTLN '(' expr_list_opt ')'
         { $$ = createNode('PrintlnStatement', null, @1, $5); }
+    ;
+
+if_stmt
+    : IF expression block else_part_opt
+        {
+          var children = [$2, $3];
+          if ($4) {
+            children.push($4);
+          }
+          $$ = createNode('IfStatement', null, @1, children);
+        }
+    ;
+
+else_part_opt
+    : ELSE if_stmt
+        { $$ = createNode('ElseBranch', null, @1, [$2]); }
+    | ELSE block
+        { $$ = createNode('ElseBranch', null, @1, [$2]); }
+    |
+        { $$ = null; }
+    ;
+
+for_stmt
+    : FOR expression block
+        {
+          $$ = createNode('ForStatement', 'condition', @1, [$2, $3]);
+        }
+    | FOR for_init_opt ';' for_condition_opt ';' for_update_opt block
+        {
+          var initNode = $2 ? $2 : createNode('Empty', null, @1, []);
+          var conditionNode = $4 ? $4 : createNode('Empty', null, @1, []);
+          var updateNode = $6 ? $6 : createNode('Empty', null, @1, []);
+          $$ = createNode('ForStatement', 'classic', @1, [
+            initNode,
+            conditionNode,
+            updateNode,
+            $7
+          ]);
+        }
+    ;
+
+switch_stmt
+    : SWITCH expression '{' case_clause_list_opt default_clause_opt '}'
+        {
+          var children = [$2];
+          if ($4) {
+            children = children.concat($4);
+          }
+          if ($5) {
+            children.push($5);
+          }
+          $$ = createNode('SwitchStatement', null, @1, children);
+        }
+    ;
+
+case_clause_list_opt
+    : case_clause_list
+        { $$ = $1; }
+    |
+        { $$ = []; }
+    ;
+
+case_clause_list
+    : case_clause_list case_clause
+        { $$ = $1.concat([$2]); }
+    | case_clause
+        { $$ = [$1]; }
+    ;
+
+case_clause
+    : CASE expr_list ':' case_stmt_list
+        {
+          $$ = createNode('CaseClause', null, @1, [
+            createNode('CaseValues', null, @2, $2),
+            createNode('Block', null, @1, $4)
+          ]);
+        }
+    ;
+
+default_clause_opt
+    : DEFAULT ':' case_stmt_list
+        {
+          $$ = createNode('DefaultClause', null, @1, [
+            createNode('Block', null, @1, $3)
+          ]);
+        }
+    |
+        { $$ = null; }
+    ;
+
+case_stmt_list
+    : case_stmt_list statement stmt_terminator_opt
+        { $$ = $1.concat([$2]); }
+    |
+        { $$ = []; }
+    ;
+
+for_init_opt
+    : var_decl
+        { $$ = $1; }
+    | short_decl
+        { $$ = $1; }
+    | assignment
+        { $$ = $1; }
+    |
+        { $$ = null; }
+    ;
+
+for_condition_opt
+    : expression
+        { $$ = $1; }
+    |
+        { $$ = null; }
+    ;
+
+for_update_opt
+    : assignment
+        { $$ = $1; }
+    | inc_stmt
+        { $$ = $1; }
+    | dec_stmt
+        { $$ = $1; }
+    |
+        { $$ = null; }
+    ;
+
+inc_stmt
+    : IDENTIFIER INC
+        {
+          $$ = createNode('IncStatement', null, @1, [
+            createNode('Identifier', $1, @1, [])
+          ]);
+        }
+    ;
+
+dec_stmt
+    : IDENTIFIER DEC
+        {
+          $$ = createNode('DecStatement', null, @1, [
+            createNode('Identifier', $1, @1, [])
+          ]);
+        }
+    ;
+
+break_stmt
+    : BREAK
+        {
+          $$ = createNode('BreakStatement', null, @1, []);
+        }
+    ;
+
+continue_stmt
+    : CONTINUE
+        {
+          $$ = createNode('ContinueStatement', null, @1, []);
+        }
+    ;
+
+return_stmt
+    : RETURN return_expr_opt
+        {
+          var children = [];
+          if ($2) {
+            children.push($2);
+          }
+          $$ = createNode('ReturnStatement', null, @1, children);
+        }
+    ;
+
+return_expr_opt
+    : expression
+        { $$ = $1; }
+    |
+        { $$ = null; }
     ;
 
 var_decl
@@ -240,16 +449,10 @@ expr_list
     ;
 
 expression
-    : expression '+' expression
-        { $$ = createNode('BinaryExpression', '+', @2, [$1, $3]); }
-    | expression '-' expression
-        { $$ = createNode('BinaryExpression', '-', @2, [$1, $3]); }
-    | expression '*' expression
-        { $$ = createNode('BinaryExpression', '*', @2, [$1, $3]); }
-    | expression '/' expression
-        { $$ = createNode('BinaryExpression', '/', @2, [$1, $3]); }
-    | expression '%' expression
-        { $$ = createNode('BinaryExpression', '%', @2, [$1, $3]); }
+    : expression OR expression
+        { $$ = createNode('BinaryExpression', '||', @2, [$1, $3]); }
+    | expression AND expression
+        { $$ = createNode('BinaryExpression', '&&', @2, [$1, $3]); }
     | expression EQ expression
         { $$ = createNode('BinaryExpression', '==', @2, [$1, $3]); }
     | expression NEQ expression
@@ -262,6 +465,18 @@ expression
         { $$ = createNode('BinaryExpression', '>=', @2, [$1, $3]); }
     | expression LTE expression
         { $$ = createNode('BinaryExpression', '<=', @2, [$1, $3]); }
+    | expression '+' expression
+        { $$ = createNode('BinaryExpression', '+', @2, [$1, $3]); }
+    | expression '-' expression
+        { $$ = createNode('BinaryExpression', '-', @2, [$1, $3]); }
+    | expression '*' expression
+        { $$ = createNode('BinaryExpression', '*', @2, [$1, $3]); }
+    | expression '/' expression
+        { $$ = createNode('BinaryExpression', '/', @2, [$1, $3]); }
+    | expression '%' expression
+        { $$ = createNode('BinaryExpression', '%', @2, [$1, $3]); }
+    | NOT expression %prec NOT
+        { $$ = createNode('UnaryExpression', '!', @1, [$2]); }
     | '-' expression %prec UMINUS
         { $$ = createNode('UnaryExpression', '-', @1, [$2]); }
     | '(' expression ')'
