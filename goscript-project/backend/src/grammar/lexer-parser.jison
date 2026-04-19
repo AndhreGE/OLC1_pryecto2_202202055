@@ -107,6 +107,8 @@ function decodeRune(text) {
 ")"                                             return ')';
 "{"                                             return '{';
 "}"                                             return '}';
+"["                                             return '[';
+"]"                                             return ']';
 "+"                                             return '+';
 "-"                                             return '-';
 "*"                                             return '*';
@@ -224,6 +226,8 @@ statement
     | short_decl
         { $$ = $1; }
     | assignment
+        { $$ = $1; }
+    | array_assignment
         { $$ = $1; }
     | if_stmt
         { $$ = $1; }
@@ -428,7 +432,7 @@ return_expr_opt
     ;
 
 var_decl
-    : VAR IDENTIFIER type_spec '=' expression
+    : VAR IDENTIFIER declared_type '=' expression
         {
           $$ = createNode('VarDeclaration', null, @1, [
             createNode('Identifier', $2, @2, []),
@@ -436,7 +440,7 @@ var_decl
             $5
           ]);
         }
-    | VAR IDENTIFIER type_spec
+    | VAR IDENTIFIER declared_type
         {
           $$ = createNode('VarDeclaration', null, @1, [
             createNode('Identifier', $2, @2, []),
@@ -462,6 +466,31 @@ assignment
             createNode('Identifier', $1, @1, []),
             $3
           ]);
+        }
+    ;
+
+array_assignment
+    : IDENTIFIER '[' expression ']' '=' expression
+        {
+          $$ = createNode('ArrayAssignment', null, @1, [
+            createNode('Identifier', $1, @1, []),
+            $3,
+            $6
+          ]);
+        }
+    ;
+
+declared_type
+    : type_spec
+        { $$ = $1; }
+    | array_type
+        { $$ = $1; }
+    ;
+
+array_type
+    : '[' INT ']' type_spec
+        {
+          $$ = createNode('ArrayType', $2, @1, [$4]);
         }
     ;
 
@@ -499,6 +528,24 @@ call_expr
         }
     ;
 
+array_access
+    : IDENTIFIER '[' expression ']'
+        {
+          $$ = createNode('ArrayAccess', null, @1, [
+            createNode('Identifier', $1, @1, []),
+            $3
+          ]);
+        }
+    ;
+
+array_literal
+    : '[' INT ']' type_spec '{' expr_list_opt '}'
+        {
+          var children = [$4].concat($6);
+          $$ = createNode('ArrayLiteral', $2, @1, children);
+        }
+    ;
+
 expression
     : expression OR expression
         { $$ = createNode('BinaryExpression', '||', @2, [$1, $3]); }
@@ -533,6 +580,10 @@ expression
     | '(' expression ')'
         { $$ = $2; }
     | call_expr
+        { $$ = $1; }
+    | array_access
+        { $$ = $1; }
+    | array_literal
         { $$ = $1; }
     | literal
         { $$ = $1; }

@@ -4,11 +4,14 @@ import { astToDot } from "../reports/astToDot";
 import type { CompilerError, ExecutionResult, SymbolEntry } from "../shared/types";
 
 type PrimitiveType = "int" | "float64" | "string" | "bool" | "rune";
+type RuntimeType = PrimitiveType | "array";
 type ReturnTypeName = PrimitiveType | "void";
 
 interface RuntimeValue {
-  dataType: PrimitiveType;
-  value: number | string | boolean;
+  dataType: RuntimeType;
+  value: number | string | boolean | RuntimeValue[];
+  elementType?: PrimitiveType;
+  size?: number;
 }
 
 interface ScopeFrame {
@@ -76,49 +79,44 @@ function registerSymbol(
   });
 }
 
-function cloneValue(value: RuntimeValue): RuntimeValue {
-  return {
-    dataType: value.dataType,
-    value: value.value
-  };
+function isArrayValue(value: RuntimeValue): boolean {
+  return value.dataType === "array";
 }
 
 function makeInt(value: number): RuntimeValue {
-  return {
-    dataType: "int",
-    value: Math.trunc(value)
-  };
+  return { dataType: "int", value: Math.trunc(value) };
 }
 
 function makeFloat(value: number): RuntimeValue {
-  return {
-    dataType: "float64",
-    value
-  };
+  return { dataType: "float64", value };
 }
 
 function makeString(value: string): RuntimeValue {
-  return {
-    dataType: "string",
-    value
-  };
+  return { dataType: "string", value };
 }
 
 function makeBool(value: boolean): RuntimeValue {
-  return {
-    dataType: "bool",
-    value
-  };
+  return { dataType: "bool", value };
 }
 
 function makeRune(value: string): RuntimeValue {
+  return { dataType: "rune", value };
+}
+
+function makeArray(
+  elementType: PrimitiveType,
+  size: number,
+  elements: RuntimeValue[]
+): RuntimeValue {
   return {
-    dataType: "rune",
-    value
+    dataType: "array",
+    value: elements,
+    elementType,
+    size
   };
 }
 
-function defaultValueForType(dataType: PrimitiveType): RuntimeValue {
+function defaultValueForPrimitive(dataType: PrimitiveType): RuntimeValue {
   switch (dataType) {
     case "int":
       return makeInt(0);
@@ -131,6 +129,52 @@ function defaultValueForType(dataType: PrimitiveType): RuntimeValue {
     case "rune":
       return makeRune("\0");
   }
+}
+
+function cloneValue(value: RuntimeValue): RuntimeValue {
+  if (isArrayValue(value)) {
+    const clonedElements = (value.value as RuntimeValue[]).map((item) => cloneValue(item));
+    return makeArray(value.elementType as PrimitiveType, value.size as number, clonedElements);
+  }
+
+  return {
+    dataType: value.dataType,
+    value: value.value
+  };
+}
+
+function typeStringFromValue(value: RuntimeValue): string {
+  if (isArrayValue(value)) {
+    return `[${value.size}]${value.elementType}`;
+  }
+
+  return value.dataType;
+}
+
+function typeStringFromTypeNode(typeNode: AstNode): string {
+  if (typeNode.kind === "ArrayType") {
+    const elementTypeNode = typeNode.children[0];
+    return `[${typeNode.value ?? "0"}]${elementTypeNode?.value ?? "int"}`;
+  }
+
+  return typeNode.value ?? "int";
+}
+
+function defaultValueFromTypeNode(typeNode: AstNode): RuntimeValue {
+  if (typeNode.kind === "ArrayType") {
+    const size = Number(typeNode.value ?? "0");
+    const elementTypeNode = typeNode.children[0];
+    const elementType = (elementTypeNode?.value ?? "int") as PrimitiveType;
+    const elements: RuntimeValue[] = [];
+
+    for (let i = 0; i < size; i++) {
+      elements.push(defaultValueForPrimitive(elementType));
+    }
+
+    return makeArray(elementType, size, elements);
+  }
+
+  return defaultValueForPrimitive((typeNode.value ?? "int") as PrimitiveType);
 }
 
 function findVariableFrame(scope: ScopeFrame, name: string): ScopeFrame | null {
@@ -189,6 +233,11 @@ function formatFloat(value: number): string {
 }
 
 function formatValueForPrint(value: RuntimeValue): string {
+  if (isArrayValue(value)) {
+    const elements = (value.value as RuntimeValue[]).map((item) => formatValueForPrint(item));
+    return `[${elements.join(", ")}]`;
+  }
+
   switch (value.dataType) {
     case "bool":
       return value.value ? "true" : "false";
@@ -200,6 +249,8 @@ function formatValueForPrint(value: RuntimeValue): string {
       return String(value.value);
     case "float64":
       return formatFloat(Number(value.value));
+    default:
+      return String(value.value);
   }
 }
 
@@ -219,7 +270,7 @@ function toIntLikeNumber(
     default:
       context.errors.push({
         type: "Semantico",
-        description: `La operación "${operator}" no acepta valores de tipo ${value.dataType}.`,
+        description: `La operación "${operator}" no acepta valores de tipo ${typeStringFromValue(value)}.`,
         line: node.line,
         column: node.column
       });
@@ -245,7 +296,7 @@ function toFloatCompatibleNumber(
     default:
       context.errors.push({
         type: "Semantico",
-        description: `La operación "${operator}" no acepta valores de tipo ${value.dataType}.`,
+        description: `La operación "${operator}" no acepta valores de tipo ${typeStringFromValue(value)}.`,
         line: node.line,
         column: node.column
       });
@@ -253,12 +304,22 @@ function toFloatCompatibleNumber(
   }
 }
 
-function coerceValue(
+function coercePrimitiveValue(
   expectedType: PrimitiveType,
   value: RuntimeValue,
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue | null {
+  if (isArrayValue(value)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${expectedType}.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
   if (expectedType === value.dataType) {
     return cloneValue(value);
   }
@@ -269,12 +330,85 @@ function coerceValue(
 
   context.errors.push({
     type: "Semantico",
-    description: `No se puede asignar un valor de tipo ${value.dataType} a una variable de tipo ${expectedType}.`,
+    description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${expectedType}.`,
     line: node.line,
     column: node.column
   });
 
   return null;
+}
+
+function coerceValueToTypeNode(
+  typeNode: AstNode,
+  value: RuntimeValue,
+  node: AstNode,
+  context: RuntimeContext
+): RuntimeValue | null {
+  if (typeNode.kind === "ArrayType") {
+    const size = Number(typeNode.value ?? "0");
+    const elementTypeNode = typeNode.children[0];
+    const elementType = (elementTypeNode?.value ?? "int") as PrimitiveType;
+
+    if (!isArrayValue(value)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo [${size}]${elementType}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    if (value.size !== size || value.elementType !== elementType) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo [${size}]${elementType}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    return cloneValue(value);
+  }
+
+  return coercePrimitiveValue((typeNode.value ?? "int") as PrimitiveType, value, node, context);
+}
+
+function coerceValueToExistingValue(
+  currentValue: RuntimeValue,
+  newValue: RuntimeValue,
+  node: AstNode,
+  context: RuntimeContext
+): RuntimeValue | null {
+  if (isArrayValue(currentValue)) {
+    if (!isArrayValue(newValue)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(newValue)} a una variable de tipo ${typeStringFromValue(currentValue)}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    if (
+      currentValue.size !== newValue.size ||
+      currentValue.elementType !== newValue.elementType
+    ) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(newValue)} a una variable de tipo ${typeStringFromValue(currentValue)}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    return cloneValue(newValue);
+  }
+
+  return coercePrimitiveValue(currentValue.dataType as PrimitiveType, newValue, node, context);
 }
 
 function expectBoolean(
@@ -321,6 +455,16 @@ function areEqualValues(
   node: AstNode,
   context: RuntimeContext
 ): boolean | null {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `No se puede comparar ${typeStringFromValue(left)} con ${typeStringFromValue(right)} usando "==".`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
   const leftNumeric = left.dataType === "int" || left.dataType === "float64";
   const rightNumeric = right.dataType === "int" || right.dataType === "float64";
 
@@ -344,11 +488,30 @@ function areEqualValues(
 
   context.errors.push({
     type: "Semantico",
-    description: `No se puede comparar ${left.dataType} con ${right.dataType} usando "==".`,
+    description: `No se puede comparar ${typeStringFromValue(left)} con ${typeStringFromValue(right)} usando "==".`,
     line: node.line,
     column: node.column
   });
+
   return null;
+}
+
+function getArrayIndex(
+  value: RuntimeValue,
+  node: AstNode,
+  context: RuntimeContext
+): number | null {
+  if (value.dataType !== "int") {
+    context.errors.push({
+      type: "Semantico",
+      description: "El índice de un arreglo debe ser int.",
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
+  return Number(value.value);
 }
 
 function evaluateAddition(
@@ -357,6 +520,14 @@ function evaluateAddition(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      'La operación "+" no es válida con arreglos.'
+    );
+  }
+
   if (left.dataType === "string" || right.dataType === "string") {
     return makeString(`${formatValueForPrint(left)}${formatValueForPrint(right)}`);
   }
@@ -392,6 +563,14 @@ function evaluateSubtraction(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      'La operación "-" no es válida con arreglos.'
+    );
+  }
+
   if (left.dataType === "string" || right.dataType === "string") {
     return pushSemanticError(
       context,
@@ -439,6 +618,14 @@ function evaluateMultiplication(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      'La operación "*" no es válida con arreglos.'
+    );
+  }
+
   if (left.dataType === "int" && right.dataType === "string") {
     const count = Math.trunc(Number(left.value));
 
@@ -492,6 +679,14 @@ function evaluateDivision(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      'La operación "/" no es válida con arreglos.'
+    );
+  }
+
   const leftAllowed = left.dataType === "int" || left.dataType === "float64";
   const rightAllowed = right.dataType === "int" || right.dataType === "float64";
 
@@ -523,6 +718,14 @@ function evaluateModulo(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      'La operación "%" no es válida con arreglos.'
+    );
+  }
+
   if (left.dataType !== "int" || right.dataType !== "int") {
     return pushSemanticError(
       context,
@@ -546,6 +749,14 @@ function evaluateUnaryMinus(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(value)) {
+    return pushSemanticError(
+      context,
+      node,
+      "La negación unaria no se aplica a arreglos."
+    );
+  }
+
   if (value.dataType === "int") {
     return makeInt(-Number(value.value));
   }
@@ -598,6 +809,14 @@ function evaluateRelationalComparison(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
+  if (isArrayValue(left) || isArrayValue(right)) {
+    return pushSemanticError(
+      context,
+      node,
+      `No se puede comparar ${typeStringFromValue(left)} con ${typeStringFromValue(right)} usando "${operator}".`
+    );
+  }
+
   let result: boolean | null = null;
 
   const leftNumeric = left.dataType === "int" || left.dataType === "float64";
@@ -642,7 +861,7 @@ function evaluateRelationalComparison(
   } else {
     context.errors.push({
       type: "Semantico",
-      description: `No se puede comparar ${left.dataType} con ${right.dataType} usando "${operator}".`,
+      description: `No se puede comparar ${typeStringFromValue(left)} con ${typeStringFromValue(right)} usando "${operator}".`,
       line: node.line,
       column: node.column
     });
@@ -747,7 +966,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
   context.callCounter += 1;
@@ -756,13 +975,14 @@ function invokeFunction(
   for (let i = 0; i < fn.params.length; i++) {
     const param = fn.params[i];
     const argValue = argValues[i];
-    const coerced = coerceValue(param.dataType, argValue, callNode, context);
+    const coerced = coercePrimitiveValue(param.dataType, argValue, callNode, context);
 
     if (!coerced) {
       if (fn.returnType === "void") {
         return null;
       }
-      return defaultValueForType(fn.returnType);
+
+      return defaultValueForPrimitive(fn.returnType);
     }
 
     callScope.values.set(param.name, coerced);
@@ -792,7 +1012,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
   if (signal?.kind === "continue") {
@@ -807,7 +1027,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
   if (fn.returnType === "void") {
@@ -831,7 +1051,7 @@ function invokeFunction(
       column: fn.node.column
     });
 
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
   if (signal.value === undefined) {
@@ -842,13 +1062,13 @@ function invokeFunction(
       column: signal.node.column
     });
 
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
-  const coercedReturn = coerceValue(fn.returnType, signal.value, signal.node, context);
+  const coercedReturn = coercePrimitiveValue(fn.returnType, signal.value, signal.node, context);
 
   if (!coercedReturn) {
-    return defaultValueForType(fn.returnType);
+    return defaultValueForPrimitive(fn.returnType);
   }
 
   return coercedReturn;
@@ -872,6 +1092,98 @@ function evaluateCallExpression(
   }
 
   return result;
+}
+
+function evaluateArrayLiteral(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  const size = Number(node.value ?? "0");
+  const typeNode = node.children[0];
+  const elementType = (typeNode?.value ?? "int") as PrimitiveType;
+  const providedExprs = node.children.slice(1);
+
+  if (providedExprs.length > size) {
+    context.errors.push({
+      type: "Semantico",
+      description: `El arreglo de tamaño ${size} no puede recibir ${providedExprs.length} valor(es) iniciales.`,
+      line: node.line,
+      column: node.column
+    });
+  }
+
+  const elements: RuntimeValue[] = [];
+
+  for (let i = 0; i < size; i++) {
+    if (i < providedExprs.length) {
+      const evaluated = evaluateExpression(providedExprs[i], scope, context);
+      const coerced = coercePrimitiveValue(elementType, evaluated, providedExprs[i], context);
+
+      if (coerced) {
+        elements.push(coerced);
+      } else {
+        elements.push(defaultValueForPrimitive(elementType));
+      }
+    } else {
+      elements.push(defaultValueForPrimitive(elementType));
+    }
+  }
+
+  return makeArray(elementType, size, elements);
+}
+
+function evaluateArrayAccess(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  const idNode = node.children[0];
+  const indexNode = node.children[1];
+
+  if (!idNode || !indexNode) {
+    return pushSemanticError(
+      context,
+      node,
+      "El acceso a arreglo está incompleto."
+    );
+  }
+
+  const resolved = resolveVariable(scope, idNode.value ?? "");
+
+  if (!resolved) {
+    return pushSemanticError(
+      context,
+      idNode,
+      `La variable "${idNode.value}" no ha sido declarada.`
+    );
+  }
+
+  if (!isArrayValue(resolved)) {
+    return pushSemanticError(
+      context,
+      node,
+      `La variable "${idNode.value}" no es un arreglo.`
+    );
+  }
+
+  const indexValue = evaluateExpression(indexNode, scope, context);
+  const index = getArrayIndex(indexValue, indexNode, context);
+
+  if (index === null) {
+    return makeInt(0);
+  }
+
+  if (index < 0 || index >= (resolved.size as number)) {
+    return pushSemanticError(
+      context,
+      indexNode,
+      `El índice ${index} está fuera del rango del arreglo "${idNode.value}".`
+    );
+  }
+
+  const elements = resolved.value as RuntimeValue[];
+  return cloneValue(elements[index]);
 }
 
 function evaluateBinaryExpression(
@@ -975,12 +1287,16 @@ function evaluateExpression(
   switch (node.kind) {
     case "IntLiteral":
       return makeInt(Number(node.value ?? "0"));
+
     case "FloatLiteral":
       return makeFloat(Number(node.value ?? "0"));
+
     case "StringLiteral":
       return makeString(node.value ?? "");
+
     case "BoolLiteral":
       return makeBool(node.value === "true");
+
     case "RuneLiteral":
       return makeRune(node.value ?? "\0");
 
@@ -1000,6 +1316,12 @@ function evaluateExpression(
 
     case "CallExpression":
       return evaluateCallExpression(node, scope, context);
+
+    case "ArrayLiteral":
+      return evaluateArrayLiteral(node, scope, context);
+
+    case "ArrayAccess":
+      return evaluateArrayAccess(node, scope, context);
 
     case "UnaryExpression": {
       const child = node.children[0];
@@ -1157,6 +1479,16 @@ function executeIncDecStatement(
     context.errors.push({
       type: "Semantico",
       description: `La variable "${varName}" no pudo resolverse correctamente.`,
+      line: idNode.line,
+      column: idNode.column
+    });
+    return;
+  }
+
+  if (isArrayValue(currentValue)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La operación ${delta > 0 ? "++" : "--"} no se permite sobre arreglos.`,
       line: idNode.line,
       column: idNode.column
     });
@@ -1480,6 +1812,92 @@ function executeForStatement(
   return null;
 }
 
+function executeArrayAssignment(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): void {
+  const idNode = node.children[0];
+  const indexNode = node.children[1];
+  const valueNode = node.children[2];
+
+  if (!idNode || !indexNode || !valueNode) {
+    context.errors.push({
+      type: "Semantico",
+      description: "La asignación a arreglo está incompleta.",
+      line: node.line,
+      column: node.column
+    });
+    return;
+  }
+
+  const frame = findVariableFrame(scope, idNode.value ?? "");
+
+  if (!frame) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${idNode.value}" no ha sido declarada.`,
+      line: idNode.line,
+      column: idNode.column
+    });
+    return;
+  }
+
+  const currentValue = frame.values.get(idNode.value ?? "");
+
+  if (!currentValue) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${idNode.value}" no pudo resolverse correctamente.`,
+      line: idNode.line,
+      column: idNode.column
+    });
+    return;
+  }
+
+  if (!isArrayValue(currentValue)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${idNode.value}" no es un arreglo.`,
+      line: idNode.line,
+      column: idNode.column
+    });
+    return;
+  }
+
+  const indexValue = evaluateExpression(indexNode, scope, context);
+  const index = getArrayIndex(indexValue, indexNode, context);
+
+  if (index === null) {
+    return;
+  }
+
+  if (index < 0 || index >= (currentValue.size as number)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `El índice ${index} está fuera del rango del arreglo "${idNode.value}".`,
+      line: indexNode.line,
+      column: indexNode.column
+    });
+    return;
+  }
+
+  const newValue = evaluateExpression(valueNode, scope, context);
+  const coerced = coercePrimitiveValue(
+    currentValue.elementType as PrimitiveType,
+    newValue,
+    valueNode,
+    context
+  );
+
+  if (!coerced) {
+    return;
+  }
+
+  const elements = currentValue.value as RuntimeValue[];
+  elements[index] = coerced;
+}
+
 function executeStatement(
   node: AstNode,
   scope: ScopeFrame,
@@ -1498,6 +1916,7 @@ function executeStatement(
 
     case "ExpressionStatement": {
       const exprNode = node.children[0];
+
       if (exprNode?.kind === "CallExpression") {
         const functionName = exprNode.value ?? "";
         const argValues = exprNode.children.map((child) =>
@@ -1505,6 +1924,7 @@ function executeStatement(
         );
         invokeFunction(functionName, argValues, exprNode, context);
       }
+
       return null;
     }
 
@@ -1550,7 +1970,6 @@ function executeStatement(
       }
 
       const varName = idNode.value ?? "";
-      const declaredType = (typeNode.value ?? "int") as PrimitiveType;
 
       if (scope.values.has(varName)) {
         context.errors.push({
@@ -1562,17 +1981,19 @@ function executeStatement(
         return null;
       }
 
-      let finalValue: RuntimeValue | null;
+      let finalValue: RuntimeValue;
 
       if (exprNode) {
         const exprValue = evaluateExpression(exprNode, scope, context);
-        finalValue = coerceValue(declaredType, exprValue, exprNode, context);
-      } else {
-        finalValue = defaultValueForType(declaredType);
-      }
+        const coerced = coerceValueToTypeNode(typeNode, exprValue, exprNode, context);
 
-      if (!finalValue) {
-        return null;
+        if (!coerced) {
+          return null;
+        }
+
+        finalValue = coerced;
+      } else {
+        finalValue = defaultValueFromTypeNode(typeNode);
       }
 
       scope.values.set(varName, finalValue);
@@ -1581,7 +2002,7 @@ function executeStatement(
         context.symbolTable,
         varName,
         "Variable",
-        declaredType,
+        typeStringFromTypeNode(typeNode),
         scope.name,
         idNode.line,
         idNode.column
@@ -1624,7 +2045,7 @@ function executeStatement(
         context.symbolTable,
         varName,
         "Variable",
-        exprValue.dataType,
+        typeStringFromValue(exprValue),
         scope.name,
         idNode.line,
         idNode.column
@@ -1673,7 +2094,7 @@ function executeStatement(
       }
 
       const exprValue = evaluateExpression(exprNode, scope, context);
-      const finalValue = coerceValue(currentValue.dataType, exprValue, exprNode, context);
+      const finalValue = coerceValueToExistingValue(currentValue, exprValue, exprNode, context);
 
       if (!finalValue) {
         return null;
@@ -1682,6 +2103,10 @@ function executeStatement(
       frame.values.set(varName, finalValue);
       return null;
     }
+
+    case "ArrayAssignment":
+      executeArrayAssignment(node, scope, context);
+      return null;
 
     default:
       context.errors.push({
@@ -1701,6 +2126,7 @@ function executeBlock(
 ): StatementResult {
   for (const statement of blockNode.children) {
     const signal = executeStatement(statement, scope, context);
+
     if (signal) {
       return signal;
     }
@@ -1851,9 +2277,7 @@ export function executeSource(source: string): ExecutionResult {
     });
   }
 
-  const mainResult = invokeFunction("main", [], mainFn.node, context);
-
-  void mainResult;
+  invokeFunction("main", [], mainFn.node, context);
 
   return {
     console: context.consoleLines.join("\n"),
