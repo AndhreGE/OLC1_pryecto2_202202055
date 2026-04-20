@@ -5,7 +5,8 @@ import type { CompilerError, ExecutionResult, SymbolEntry } from "../shared/type
 
 type PrimitiveType = "int" | "float64" | "string" | "bool" | "rune";
 type RuntimeType = PrimitiveType | "array" | "struct";
-type ReturnTypeName = PrimitiveType | "void";
+type NonVoidTypeName = PrimitiveType | string;
+type ReturnTypeName = NonVoidTypeName | "void";
 
 interface RuntimeValue {
   dataType: RuntimeType;
@@ -29,7 +30,7 @@ interface FlowSignal {
 
 interface ParameterInfo {
   name: string;
-  dataType: PrimitiveType;
+  typeName: NonVoidTypeName;
   line: number;
   column: number;
 }
@@ -67,6 +68,16 @@ interface RuntimeContext {
 }
 
 type StatementResult = FlowSignal | null;
+
+function isPrimitiveTypeName(typeName: string): typeName is PrimitiveType {
+  return (
+    typeName === "int" ||
+    typeName === "float64" ||
+    typeName === "string" ||
+    typeName === "bool" ||
+    typeName === "rune"
+  );
+}
 
 function createScope(name: string, parent: ScopeFrame | null): ScopeFrame {
   return {
@@ -260,6 +271,18 @@ function defaultValueFromTypeNode(
   return defaultValueForPrimitive((typeNode.value ?? "int") as PrimitiveType);
 }
 
+function defaultValueForTypeName(
+  typeName: NonVoidTypeName,
+  context: RuntimeContext,
+  node: AstNode
+): RuntimeValue | null {
+  if (isPrimitiveTypeName(typeName)) {
+    return defaultValueForPrimitive(typeName);
+  }
+
+  return createDefaultStructValue(typeName, context, node);
+}
+
 function findVariableFrame(scope: ScopeFrame, name: string): ScopeFrame | null {
   let current: ScopeFrame | null = scope;
 
@@ -447,6 +470,39 @@ function coercePrimitiveValue(
   return null;
 }
 
+function coerceValueToTypeName(
+  expectedType: NonVoidTypeName,
+  value: RuntimeValue,
+  node: AstNode,
+  context: RuntimeContext
+): RuntimeValue | null {
+  if (isPrimitiveTypeName(expectedType)) {
+    return coercePrimitiveValue(expectedType, value, node, context);
+  }
+
+  if (!isStructValue(value)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${expectedType}.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
+  if (value.structName !== expectedType) {
+    context.errors.push({
+      type: "Semantico",
+      description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${expectedType}.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
+  return cloneValue(value);
+}
+
 function coerceValueToTypeNode(
   typeNode: AstNode,
   value: RuntimeValue,
@@ -482,27 +538,7 @@ function coerceValueToTypeNode(
   }
 
   if (typeNode.kind === "NamedType") {
-    if (!isStructValue(value)) {
-      context.errors.push({
-        type: "Semantico",
-        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${typeNode.value}.`,
-        line: node.line,
-        column: node.column
-      });
-      return null;
-    }
-
-    if (value.structName !== typeNode.value) {
-      context.errors.push({
-        type: "Semantico",
-        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${typeNode.value}.`,
-        line: node.line,
-        column: node.column
-      });
-      return null;
-    }
-
-    return cloneValue(value);
+    return coerceValueToTypeName(typeNode.value ?? "", value, node, context);
   }
 
   return coercePrimitiveValue((typeNode.value ?? "int") as PrimitiveType, value, node, context);
@@ -1119,7 +1155,7 @@ function extractFunctionInfo(
     }
 
     const paramName = idNode.value ?? "";
-    const paramType = (typeNode.value ?? "int") as PrimitiveType;
+    const typeName = (typeNode.value ?? "int") as NonVoidTypeName;
 
     if (paramNames.has(paramName)) {
       context.errors.push({
@@ -1135,7 +1171,7 @@ function extractFunctionInfo(
 
     params.push({
       name: paramName,
-      dataType: paramType,
+      typeName,
       line: idNode.line,
       column: idNode.column
     });
@@ -1178,7 +1214,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, callNode) ?? makeInt(0);
   }
 
   context.callCounter += 1;
@@ -1187,14 +1223,14 @@ function invokeFunction(
   for (let i = 0; i < fn.params.length; i++) {
     const param = fn.params[i];
     const argValue = argValues[i];
-    const coerced = coercePrimitiveValue(param.dataType, argValue, callNode, context);
+    const coerced = coerceValueToTypeName(param.typeName, argValue, callNode, context);
 
     if (!coerced) {
       if (fn.returnType === "void") {
         return null;
       }
 
-      return defaultValueForPrimitive(fn.returnType);
+      return defaultValueForTypeName(fn.returnType, context, callNode) ?? makeInt(0);
     }
 
     callScope.values.set(param.name, coerced);
@@ -1203,7 +1239,7 @@ function invokeFunction(
       context.symbolTable,
       param.name,
       "Parámetro",
-      param.dataType,
+      param.typeName,
       callScope.name,
       param.line,
       param.column
@@ -1224,7 +1260,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, signal.node) ?? makeInt(0);
   }
 
   if (signal?.kind === "continue") {
@@ -1239,7 +1275,7 @@ function invokeFunction(
       return null;
     }
 
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, signal.node) ?? makeInt(0);
   }
 
   if (fn.returnType === "void") {
@@ -1263,7 +1299,7 @@ function invokeFunction(
       column: fn.node.column
     });
 
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, fn.node) ?? makeInt(0);
   }
 
   if (signal.value === undefined) {
@@ -1274,13 +1310,13 @@ function invokeFunction(
       column: signal.node.column
     });
 
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, signal.node) ?? makeInt(0);
   }
 
-  const coercedReturn = coercePrimitiveValue(fn.returnType, signal.value, signal.node, context);
+  const coercedReturn = coerceValueToTypeName(fn.returnType, signal.value, signal.node, context);
 
   if (!coercedReturn) {
-    return defaultValueForPrimitive(fn.returnType);
+    return defaultValueForTypeName(fn.returnType, context, signal.node) ?? makeInt(0);
   }
 
   return coercedReturn;

@@ -218,7 +218,7 @@ param_list
     ;
 
 param_decl
-    : IDENTIFIER declared_type
+    : IDENTIFIER callable_type
         {
           $$ = createNode('Parameter', null, @1, [
             createNode('Identifier', $1, @1, []),
@@ -228,10 +228,17 @@ param_decl
     ;
 
 return_type_opt
-    : declared_type
-        { $$ = createNode('ReturnType', null, @1, [$1]); }
+    : callable_type
+        { $$ = createNode('ReturnType', $1.value, @1, []); }
     |
         { $$ = createNode('ReturnType', 'void', null, []); }
+    ;
+
+callable_type
+    : type_spec
+        { $$ = $1; }
+    | named_type
+        { $$ = $1; }
     ;
 
 block
