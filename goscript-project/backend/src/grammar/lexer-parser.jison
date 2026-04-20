@@ -44,7 +44,7 @@ function decodeRune(text) {
 
 %locations
 
-%token FUNC VAR FMT PRINTLN TYPE_INT TYPE_FLOAT64 TYPE_STRING TYPE_BOOL TYPE_RUNE
+%token FUNC VAR TYPE STRUCT FMT PRINTLN TYPE_INT TYPE_FLOAT64 TYPE_STRING TYPE_BOOL TYPE_RUNE
 %token IDENTIFIER STRING INT FLOAT BOOL RUNE DECLARE EOF
 %token EQ NEQ GTE LTE AND OR NOT IF ELSE FOR INC DEC BREAK CONTINUE RETURN
 %token SWITCH CASE DEFAULT
@@ -68,6 +68,8 @@ function decodeRune(text) {
 
 "func"                                          return 'FUNC';
 "var"                                           return 'VAR';
+"type"                                          return 'TYPE';
+"struct"                                        return 'STRUCT';
 "fmt"                                           return 'FMT';
 "Println"                                       return 'PRINTLN';
 "if"                                            return 'IF';
@@ -140,7 +142,7 @@ function decodeRune(text) {
 %%
 
 program
-    : function_list EOF
+    : top_level_list EOF
         {
           yy.shared = yy.shared || {};
           yy.shared.ast = createNode('Program', null, @1, $1);
@@ -148,11 +150,46 @@ program
         }
     ;
 
-function_list
-    : function_list function_decl
+top_level_list
+    : top_level_list top_level_decl
         { $$ = $1.concat([$2]); }
-    | function_decl
+    | top_level_decl
         { $$ = [$1]; }
+    ;
+
+top_level_decl
+    : function_decl
+        { $$ = $1; }
+    | struct_decl
+        { $$ = $1; }
+    ;
+
+struct_decl
+    : TYPE IDENTIFIER STRUCT '{' struct_field_list_opt '}'
+        {
+          $$ = createNode('StructDeclaration', $2, @2, $5);
+        }
+    ;
+
+struct_field_list_opt
+    : struct_field_list
+        { $$ = $1; }
+    |
+        { $$ = []; }
+    ;
+
+struct_field_list
+    : struct_field_list struct_field_decl
+        { $$ = $1.concat([$2]); }
+    | struct_field_decl
+        { $$ = [$1]; }
+    ;
+
+struct_field_decl
+    : IDENTIFIER type_spec
+        {
+          $$ = createNode('StructField', $1, @1, [$2]);
+        }
     ;
 
 function_decl
@@ -181,7 +218,7 @@ param_list
     ;
 
 param_decl
-    : IDENTIFIER type_spec
+    : IDENTIFIER declared_type
         {
           $$ = createNode('Parameter', null, @1, [
             createNode('Identifier', $1, @1, []),
@@ -191,8 +228,8 @@ param_decl
     ;
 
 return_type_opt
-    : type_spec
-        { $$ = createNode('ReturnType', $1.value, @1, []); }
+    : declared_type
+        { $$ = createNode('ReturnType', null, @1, [$1]); }
     |
         { $$ = createNode('ReturnType', 'void', null, []); }
     ;
@@ -228,6 +265,8 @@ statement
     | assignment
         { $$ = $1; }
     | array_assignment
+        { $$ = $1; }
+    | field_assignment
         { $$ = $1; }
     | if_stmt
         { $$ = $1; }
@@ -480,11 +519,30 @@ array_assignment
         }
     ;
 
+field_assignment
+    : IDENTIFIER '.' IDENTIFIER '=' expression
+        {
+          $$ = createNode('FieldAssignment', $3, @1, [
+            createNode('Identifier', $1, @1, []),
+            $5
+          ]);
+        }
+    ;
+
 declared_type
     : type_spec
         { $$ = $1; }
     | array_type
         { $$ = $1; }
+    | named_type
+        { $$ = $1; }
+    ;
+
+named_type
+    : IDENTIFIER
+        {
+          $$ = createNode('NamedType', $1, @1, []);
+        }
     ;
 
 array_type
@@ -538,11 +596,48 @@ array_access
         }
     ;
 
+field_access
+    : IDENTIFIER '.' IDENTIFIER
+        {
+          $$ = createNode('FieldAccess', $3, @1, [
+            createNode('Identifier', $1, @1, [])
+          ]);
+        }
+    ;
+
 array_literal
     : '[' INT ']' type_spec '{' expr_list_opt '}'
         {
           var children = [$4].concat($6);
           $$ = createNode('ArrayLiteral', $2, @1, children);
+        }
+    ;
+
+struct_literal
+    : IDENTIFIER '{' struct_init_list_opt '}'
+        {
+          $$ = createNode('StructLiteral', $1, @1, $3);
+        }
+    ;
+
+struct_init_list_opt
+    : struct_init_list
+        { $$ = $1; }
+    |
+        { $$ = []; }
+    ;
+
+struct_init_list
+    : struct_init_list ',' struct_init
+        { $$ = $1.concat([$3]); }
+    | struct_init
+        { $$ = [$1]; }
+    ;
+
+struct_init
+    : IDENTIFIER ':' expression
+        {
+          $$ = createNode('StructInit', $1, @1, [$3]);
         }
     ;
 
@@ -583,7 +678,11 @@ expression
         { $$ = $1; }
     | array_access
         { $$ = $1; }
+    | field_access
+        { $$ = $1; }
     | array_literal
+        { $$ = $1; }
+    | struct_literal
         { $$ = $1; }
     | literal
         { $$ = $1; }

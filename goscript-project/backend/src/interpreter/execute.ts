@@ -4,14 +4,15 @@ import { astToDot } from "../reports/astToDot";
 import type { CompilerError, ExecutionResult, SymbolEntry } from "../shared/types";
 
 type PrimitiveType = "int" | "float64" | "string" | "bool" | "rune";
-type RuntimeType = PrimitiveType | "array";
+type RuntimeType = PrimitiveType | "array" | "struct";
 type ReturnTypeName = PrimitiveType | "void";
 
 interface RuntimeValue {
   dataType: RuntimeType;
-  value: number | string | boolean | RuntimeValue[];
+  value: number | string | boolean | RuntimeValue[] | Record<string, RuntimeValue>;
   elementType?: PrimitiveType;
   size?: number;
+  structName?: string;
 }
 
 interface ScopeFrame {
@@ -41,8 +42,23 @@ interface FunctionInfo {
   node: AstNode;
 }
 
+interface StructFieldInfo {
+  name: string;
+  dataType: PrimitiveType;
+  line: number;
+  column: number;
+}
+
+interface StructInfo {
+  name: string;
+  fields: StructFieldInfo[];
+  fieldMap: Map<string, StructFieldInfo>;
+  node: AstNode;
+}
+
 interface RuntimeContext {
   functions: Map<string, FunctionInfo>;
+  structs: Map<string, StructInfo>;
   symbolTable: SymbolEntry[];
   consoleLines: string[];
   errors: CompilerError[];
@@ -83,6 +99,10 @@ function isArrayValue(value: RuntimeValue): boolean {
   return value.dataType === "array";
 }
 
+function isStructValue(value: RuntimeValue): boolean {
+  return value.dataType === "struct";
+}
+
 function makeInt(value: number): RuntimeValue {
   return { dataType: "int", value: Math.trunc(value) };
 }
@@ -116,6 +136,17 @@ function makeArray(
   };
 }
 
+function makeStruct(
+  structName: string,
+  fields: Record<string, RuntimeValue>
+): RuntimeValue {
+  return {
+    dataType: "struct",
+    value: fields,
+    structName
+  };
+}
+
 function defaultValueForPrimitive(dataType: PrimitiveType): RuntimeValue {
   switch (dataType) {
     case "int":
@@ -137,6 +168,17 @@ function cloneValue(value: RuntimeValue): RuntimeValue {
     return makeArray(value.elementType as PrimitiveType, value.size as number, clonedElements);
   }
 
+  if (isStructValue(value)) {
+    const originalFields = value.value as Record<string, RuntimeValue>;
+    const clonedFields: Record<string, RuntimeValue> = {};
+
+    for (const key of Object.keys(originalFields)) {
+      clonedFields[key] = cloneValue(originalFields[key]);
+    }
+
+    return makeStruct(value.structName as string, clonedFields);
+  }
+
   return {
     dataType: value.dataType,
     value: value.value
@@ -148,6 +190,10 @@ function typeStringFromValue(value: RuntimeValue): string {
     return `[${value.size}]${value.elementType}`;
   }
 
+  if (isStructValue(value)) {
+    return value.structName ?? "struct";
+  }
+
   return value.dataType;
 }
 
@@ -157,10 +203,43 @@ function typeStringFromTypeNode(typeNode: AstNode): string {
     return `[${typeNode.value ?? "0"}]${elementTypeNode?.value ?? "int"}`;
   }
 
+  if (typeNode.kind === "NamedType") {
+    return typeNode.value ?? "struct";
+  }
+
   return typeNode.value ?? "int";
 }
 
-function defaultValueFromTypeNode(typeNode: AstNode): RuntimeValue {
+function createDefaultStructValue(
+  structName: string,
+  context: RuntimeContext,
+  node: AstNode
+): RuntimeValue | null {
+  const structInfo = context.structs.get(structName);
+
+  if (!structInfo) {
+    context.errors.push({
+      type: "Semantico",
+      description: `El struct "${structName}" no ha sido declarado.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
+  const fields: Record<string, RuntimeValue> = {};
+
+  for (const field of structInfo.fields) {
+    fields[field.name] = defaultValueForPrimitive(field.dataType);
+  }
+
+  return makeStruct(structName, fields);
+}
+
+function defaultValueFromTypeNode(
+  typeNode: AstNode,
+  context: RuntimeContext
+): RuntimeValue | null {
   if (typeNode.kind === "ArrayType") {
     const size = Number(typeNode.value ?? "0");
     const elementTypeNode = typeNode.children[0];
@@ -172,6 +251,10 @@ function defaultValueFromTypeNode(typeNode: AstNode): RuntimeValue {
     }
 
     return makeArray(elementType, size, elements);
+  }
+
+  if (typeNode.kind === "NamedType") {
+    return createDefaultStructValue(typeNode.value ?? "", context, typeNode);
   }
 
   return defaultValueForPrimitive((typeNode.value ?? "int") as PrimitiveType);
@@ -238,6 +321,12 @@ function formatValueForPrint(value: RuntimeValue): string {
     return `[${elements.join(", ")}]`;
   }
 
+  if (isStructValue(value)) {
+    const fields = value.value as Record<string, RuntimeValue>;
+    const parts = Object.keys(fields).map((key) => `${key}: ${formatValueForPrint(fields[key])}`);
+    return `${value.structName}{${parts.join(", ")}}`;
+  }
+
   switch (value.dataType) {
     case "bool":
       return value.value ? "true" : "false";
@@ -260,6 +349,16 @@ function toIntLikeNumber(
   context: RuntimeContext,
   operator: string
 ): number | null {
+  if (isArrayValue(value) || isStructValue(value)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La operación "${operator}" no acepta valores de tipo ${typeStringFromValue(value)}.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
   switch (value.dataType) {
     case "int":
       return Number(value.value);
@@ -284,6 +383,16 @@ function toFloatCompatibleNumber(
   context: RuntimeContext,
   operator: string
 ): number | null {
+  if (isArrayValue(value) || isStructValue(value)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La operación "${operator}" no acepta valores de tipo ${typeStringFromValue(value)}.`,
+      line: node.line,
+      column: node.column
+    });
+    return null;
+  }
+
   switch (value.dataType) {
     case "float64":
       return Number(value.value);
@@ -310,7 +419,7 @@ function coercePrimitiveValue(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue | null {
-  if (isArrayValue(value)) {
+  if (isArrayValue(value) || isStructValue(value)) {
     context.errors.push({
       type: "Semantico",
       description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${expectedType}.`,
@@ -372,6 +481,30 @@ function coerceValueToTypeNode(
     return cloneValue(value);
   }
 
+  if (typeNode.kind === "NamedType") {
+    if (!isStructValue(value)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${typeNode.value}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    if (value.structName !== typeNode.value) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(value)} a una variable de tipo ${typeNode.value}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    return cloneValue(value);
+  }
+
   return coercePrimitiveValue((typeNode.value ?? "int") as PrimitiveType, value, node, context);
 }
 
@@ -396,6 +529,30 @@ function coerceValueToExistingValue(
       currentValue.size !== newValue.size ||
       currentValue.elementType !== newValue.elementType
     ) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(newValue)} a una variable de tipo ${typeStringFromValue(currentValue)}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    return cloneValue(newValue);
+  }
+
+  if (isStructValue(currentValue)) {
+    if (!isStructValue(newValue)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `No se puede asignar un valor de tipo ${typeStringFromValue(newValue)} a una variable de tipo ${typeStringFromValue(currentValue)}.`,
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    if (currentValue.structName !== newValue.structName) {
       context.errors.push({
         type: "Semantico",
         description: `No se puede asignar un valor de tipo ${typeStringFromValue(newValue)} a una variable de tipo ${typeStringFromValue(currentValue)}.`,
@@ -455,7 +612,7 @@ function areEqualValues(
   node: AstNode,
   context: RuntimeContext
 ): boolean | null {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     context.errors.push({
       type: "Semantico",
       description: `No se puede comparar ${typeStringFromValue(left)} con ${typeStringFromValue(right)} usando "==".`,
@@ -514,17 +671,72 @@ function getArrayIndex(
   return Number(value.value);
 }
 
+function extractStructInfo(
+  node: AstNode,
+  context: RuntimeContext
+): StructInfo | null {
+  const name = node.value ?? "";
+  const fields: StructFieldInfo[] = [];
+  const fieldMap = new Map<string, StructFieldInfo>();
+
+  for (const child of node.children) {
+    if (child.kind !== "StructField") {
+      continue;
+    }
+
+    const fieldName = child.value ?? "";
+    const typeNode = child.children[0];
+
+    if (!typeNode) {
+      context.errors.push({
+        type: "Semantico",
+        description: `El campo "${fieldName}" del struct "${name}" está incompleto.`,
+        line: child.line,
+        column: child.column
+      });
+      continue;
+    }
+
+    if (fieldMap.has(fieldName)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `El campo "${fieldName}" está repetido en el struct "${name}".`,
+        line: child.line,
+        column: child.column
+      });
+      continue;
+    }
+
+    const info: StructFieldInfo = {
+      name: fieldName,
+      dataType: (typeNode.value ?? "int") as PrimitiveType,
+      line: child.line,
+      column: child.column
+    };
+
+    fields.push(info);
+    fieldMap.set(fieldName, info);
+  }
+
+  return {
+    name,
+    fields,
+    fieldMap,
+    node
+  };
+}
+
 function evaluateAddition(
   left: RuntimeValue,
   right: RuntimeValue,
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
-      'La operación "+" no es válida con arreglos.'
+      'La operación "+" no es válida con arreglos o structs.'
     );
   }
 
@@ -563,11 +775,11 @@ function evaluateSubtraction(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
-      'La operación "-" no es válida con arreglos.'
+      'La operación "-" no es válida con arreglos o structs.'
     );
   }
 
@@ -618,11 +830,11 @@ function evaluateMultiplication(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
-      'La operación "*" no es válida con arreglos.'
+      'La operación "*" no es válida con arreglos o structs.'
     );
   }
 
@@ -679,11 +891,11 @@ function evaluateDivision(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
-      'La operación "/" no es válida con arreglos.'
+      'La operación "/" no es válida con arreglos o structs.'
     );
   }
 
@@ -718,11 +930,11 @@ function evaluateModulo(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
-      'La operación "%" no es válida con arreglos.'
+      'La operación "%" no es válida con arreglos o structs.'
     );
   }
 
@@ -749,11 +961,11 @@ function evaluateUnaryMinus(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(value)) {
+  if (isArrayValue(value) || isStructValue(value)) {
     return pushSemanticError(
       context,
       node,
-      "La negación unaria no se aplica a arreglos."
+      "La negación unaria no se aplica a arreglos o structs."
     );
   }
 
@@ -809,7 +1021,7 @@ function evaluateRelationalComparison(
   node: AstNode,
   context: RuntimeContext
 ): RuntimeValue {
-  if (isArrayValue(left) || isArrayValue(right)) {
+  if (isArrayValue(left) || isArrayValue(right) || isStructValue(left) || isStructValue(right)) {
     return pushSemanticError(
       context,
       node,
@@ -1133,6 +1345,74 @@ function evaluateArrayLiteral(
   return makeArray(elementType, size, elements);
 }
 
+function evaluateStructLiteral(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  const structName = node.value ?? "";
+  const baseValue = createDefaultStructValue(structName, context, node);
+
+  if (!baseValue || !isStructValue(baseValue)) {
+    return makeInt(0);
+  }
+
+  const structInfo = context.structs.get(structName);
+  const fieldsObject = baseValue.value as Record<string, RuntimeValue>;
+  const seen = new Set<string>();
+
+  if (!structInfo) {
+    return makeInt(0);
+  }
+
+  for (const initNode of node.children) {
+    const fieldName = initNode.value ?? "";
+    const exprNode = initNode.children[0];
+    const fieldInfo = structInfo.fieldMap.get(fieldName);
+
+    if (!fieldInfo) {
+      context.errors.push({
+        type: "Semantico",
+        description: `El campo "${fieldName}" no existe en el struct "${structName}".`,
+        line: initNode.line,
+        column: initNode.column
+      });
+      continue;
+    }
+
+    if (!exprNode) {
+      context.errors.push({
+        type: "Semantico",
+        description: `La inicialización del campo "${fieldName}" está incompleta.`,
+        line: initNode.line,
+        column: initNode.column
+      });
+      continue;
+    }
+
+    if (seen.has(fieldName)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `El campo "${fieldName}" está repetido en el literal del struct "${structName}".`,
+        line: initNode.line,
+        column: initNode.column
+      });
+      continue;
+    }
+
+    seen.add(fieldName);
+
+    const evaluated = evaluateExpression(exprNode, scope, context);
+    const coerced = coercePrimitiveValue(fieldInfo.dataType, evaluated, exprNode, context);
+
+    if (coerced) {
+      fieldsObject[fieldName] = coerced;
+    }
+  }
+
+  return baseValue;
+}
+
 function evaluateArrayAccess(
   node: AstNode,
   scope: ScopeFrame,
@@ -1184,6 +1464,53 @@ function evaluateArrayAccess(
 
   const elements = resolved.value as RuntimeValue[];
   return cloneValue(elements[index]);
+}
+
+function evaluateFieldAccess(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  const objectNode = node.children[0];
+  const fieldName = node.value ?? "";
+
+  if (!objectNode) {
+    return pushSemanticError(
+      context,
+      node,
+      "El acceso a campo está incompleto."
+    );
+  }
+
+  const resolved = resolveVariable(scope, objectNode.value ?? "");
+
+  if (!resolved) {
+    return pushSemanticError(
+      context,
+      objectNode,
+      `La variable "${objectNode.value}" no ha sido declarada.`
+    );
+  }
+
+  if (!isStructValue(resolved)) {
+    return pushSemanticError(
+      context,
+      node,
+      `La variable "${objectNode.value}" no es un struct.`
+    );
+  }
+
+  const fieldsObject = resolved.value as Record<string, RuntimeValue>;
+
+  if (!(fieldName in fieldsObject)) {
+    return pushSemanticError(
+      context,
+      node,
+      `El campo "${fieldName}" no existe en el struct "${resolved.structName}".`
+    );
+  }
+
+  return cloneValue(fieldsObject[fieldName]);
 }
 
 function evaluateBinaryExpression(
@@ -1320,8 +1647,14 @@ function evaluateExpression(
     case "ArrayLiteral":
       return evaluateArrayLiteral(node, scope, context);
 
+    case "StructLiteral":
+      return evaluateStructLiteral(node, scope, context);
+
     case "ArrayAccess":
       return evaluateArrayAccess(node, scope, context);
+
+    case "FieldAccess":
+      return evaluateFieldAccess(node, scope, context);
 
     case "UnaryExpression": {
       const child = node.children[0];
@@ -1485,10 +1818,10 @@ function executeIncDecStatement(
     return;
   }
 
-  if (isArrayValue(currentValue)) {
+  if (isArrayValue(currentValue) || isStructValue(currentValue)) {
     context.errors.push({
       type: "Semantico",
-      description: `La operación ${delta > 0 ? "++" : "--"} no se permite sobre arreglos.`,
+      description: `La operación ${delta > 0 ? "++" : "--"} no se permite sobre arreglos o structs.`,
       line: idNode.line,
       column: idNode.column
     });
@@ -1898,6 +2231,94 @@ function executeArrayAssignment(
   elements[index] = coerced;
 }
 
+function executeFieldAssignment(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): void {
+  const objectNode = node.children[0];
+  const valueNode = node.children[1];
+  const fieldName = node.value ?? "";
+
+  if (!objectNode || !valueNode) {
+    context.errors.push({
+      type: "Semantico",
+      description: "La asignación a campo está incompleta.",
+      line: node.line,
+      column: node.column
+    });
+    return;
+  }
+
+  const frame = findVariableFrame(scope, objectNode.value ?? "");
+
+  if (!frame) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${objectNode.value}" no ha sido declarada.`,
+      line: objectNode.line,
+      column: objectNode.column
+    });
+    return;
+  }
+
+  const currentValue = frame.values.get(objectNode.value ?? "");
+
+  if (!currentValue) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${objectNode.value}" no pudo resolverse correctamente.`,
+      line: objectNode.line,
+      column: objectNode.column
+    });
+    return;
+  }
+
+  if (!isStructValue(currentValue)) {
+    context.errors.push({
+      type: "Semantico",
+      description: `La variable "${objectNode.value}" no es un struct.`,
+      line: objectNode.line,
+      column: objectNode.column
+    });
+    return;
+  }
+
+  const structInfo = context.structs.get(currentValue.structName ?? "");
+
+  if (!structInfo) {
+    context.errors.push({
+      type: "Semantico",
+      description: `El struct "${currentValue.structName}" no fue encontrado.`,
+      line: node.line,
+      column: node.column
+    });
+    return;
+  }
+
+  const fieldInfo = structInfo.fieldMap.get(fieldName);
+
+  if (!fieldInfo) {
+    context.errors.push({
+      type: "Semantico",
+      description: `El campo "${fieldName}" no existe en el struct "${currentValue.structName}".`,
+      line: node.line,
+      column: node.column
+    });
+    return;
+  }
+
+  const evaluated = evaluateExpression(valueNode, scope, context);
+  const coerced = coercePrimitiveValue(fieldInfo.dataType, evaluated, valueNode, context);
+
+  if (!coerced) {
+    return;
+  }
+
+  const fieldsObject = currentValue.value as Record<string, RuntimeValue>;
+  fieldsObject[fieldName] = coerced;
+}
+
 function executeStatement(
   node: AstNode,
   scope: ScopeFrame,
@@ -1981,19 +2402,21 @@ function executeStatement(
         return null;
       }
 
-      let finalValue: RuntimeValue;
+      let finalValue: RuntimeValue | null;
 
       if (exprNode) {
         const exprValue = evaluateExpression(exprNode, scope, context);
-        const coerced = coerceValueToTypeNode(typeNode, exprValue, exprNode, context);
+        finalValue = coerceValueToTypeNode(typeNode, exprValue, exprNode, context);
 
-        if (!coerced) {
+        if (!finalValue) {
           return null;
         }
-
-        finalValue = coerced;
       } else {
-        finalValue = defaultValueFromTypeNode(typeNode);
+        finalValue = defaultValueFromTypeNode(typeNode, context);
+
+        if (!finalValue) {
+          return null;
+        }
       }
 
       scope.values.set(varName, finalValue);
@@ -2108,6 +2531,10 @@ function executeStatement(
       executeArrayAssignment(node, scope, context);
       return null;
 
+    case "FieldAssignment":
+      executeFieldAssignment(node, scope, context);
+      return null;
+
     default:
       context.errors.push({
         type: "Semantico",
@@ -2197,6 +2624,7 @@ export function executeSource(source: string): ExecutionResult {
 
   const context: RuntimeContext = {
     functions: new Map<string, FunctionInfo>(),
+    structs: new Map<string, StructInfo>(),
     symbolTable: [],
     consoleLines: [],
     errors: [],
@@ -2205,6 +2633,40 @@ export function executeSource(source: string): ExecutionResult {
   };
 
   const astChildren = Array.isArray(ast.children) ? ast.children : [];
+
+  for (const child of astChildren) {
+    if (child.kind !== "StructDeclaration") {
+      continue;
+    }
+
+    const structInfo = extractStructInfo(child, context);
+
+    if (!structInfo) {
+      continue;
+    }
+
+    if (context.structs.has(structInfo.name)) {
+      context.errors.push({
+        type: "Semantico",
+        description: `El struct "${structInfo.name}" ya fue declarado.`,
+        line: child.line,
+        column: child.column
+      });
+      continue;
+    }
+
+    context.structs.set(structInfo.name, structInfo);
+
+    registerSymbol(
+      context.symbolTable,
+      structInfo.name,
+      "Struct",
+      "struct",
+      "Global",
+      child.line,
+      child.column
+    );
+  }
 
   for (const child of astChildren) {
     if (child.kind !== "FunctionDeclaration") {
