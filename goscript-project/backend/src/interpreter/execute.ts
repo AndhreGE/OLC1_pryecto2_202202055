@@ -1103,6 +1103,137 @@ function evaluateBuiltinStrconvParseFloat(
   return makeFloat(Number.parseFloat(text));
 }
 
+function evaluateBuiltinStringsJoin(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  if (node.children.length !== 2) {
+    return pushSemanticError(
+      context,
+      node,
+      "La función strings.Join espera exactamente 2 argumentos."
+    );
+  }
+
+  const collectionValue = evaluateExpression(node.children[0], scope, context);
+  const separatorValue = evaluateExpression(node.children[1], scope, context);
+
+  const isCollectionValid =
+    (isSliceValue(collectionValue) || isArrayValue(collectionValue)) &&
+    collectionValue.elementType === "string";
+
+  if (!isCollectionValid) {
+    return pushSemanticError(
+      context,
+      node,
+      `La función strings.Join solo acepta []string o [n]string como primer argumento, pero recibió ${typeStringFromValue(collectionValue)}.`
+    );
+  }
+
+  if (separatorValue.dataType !== "string") {
+    return pushSemanticError(
+      context,
+      node,
+      `La función strings.Join solo acepta string como segundo argumento, pero recibió ${typeStringFromValue(separatorValue)}.`
+    );
+  }
+
+  const items = collectionValue.value as RuntimeValue[];
+  const parts = items.map((item) => String(item.value));
+  const separator = String(separatorValue.value);
+
+  return makeString(parts.join(separator));
+}
+
+function evaluateBuiltinSlicesIndex(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  if (node.children.length !== 2) {
+    return pushSemanticError(
+      context,
+      node,
+      "La función slices.Index espera exactamente 2 argumentos."
+    );
+  }
+
+  const collectionValue = evaluateExpression(node.children[0], scope, context);
+  const targetValue = evaluateExpression(node.children[1], scope, context);
+
+  if (!isSliceValue(collectionValue) && !isArrayValue(collectionValue)) {
+    return pushSemanticError(
+      context,
+      node,
+      `La función slices.Index solo acepta arrays o slices como primer argumento, pero recibió ${typeStringFromValue(collectionValue)}.`
+    );
+  }
+
+  const elementType = collectionValue.elementType ?? "";
+
+  if (
+    elementType.startsWith("[") ||
+    elementType.startsWith("[]")
+  ) {
+    return pushSemanticError(
+      context,
+      node,
+      `La función slices.Index todavía no soporta elementos de tipo ${elementType}.`
+    );
+  }
+
+  const coercedTarget = coerceValueToTypeName(elementType, targetValue, node.children[1], context);
+  if (!coercedTarget) {
+    return makeInt(-1);
+  }
+
+  if (
+    isStructValue(coercedTarget) ||
+    isArrayValue(coercedTarget) ||
+    isSliceValue(coercedTarget)
+  ) {
+    return pushSemanticError(
+      context,
+      node,
+      `La función slices.Index todavía no soporta búsqueda de elementos de tipo ${elementType}.`
+    );
+  }
+
+  const items = collectionValue.value as RuntimeValue[];
+
+  for (let index = 0; index < items.length; index += 1) {
+    const equalResult = areEqualValues(items[index], coercedTarget, node, context);
+
+    if (equalResult === null) {
+      return makeInt(-1);
+    }
+
+    if (equalResult) {
+      return makeInt(index);
+    }
+  }
+
+  return makeInt(-1);
+}
+
+function evaluateBuiltinReflectTypeOf(
+  node: AstNode,
+  scope: ScopeFrame,
+  context: RuntimeContext
+): RuntimeValue {
+  if (node.children.length !== 1) {
+    return pushSemanticError(
+      context,
+      node,
+      'La función reflect.TypeOf espera exactamente 1 argumento.'
+    );
+  }
+
+  const rawValue = evaluateExpression(node.children[0], scope, context);
+  return makeString(typeStringFromValue(rawValue));
+}
+
 function evaluateQualifiedCallExpression(
   node: AstNode,
   scope: ScopeFrame,
@@ -1116,6 +1247,21 @@ function evaluateQualifiedCallExpression(
 
   if (qualifiedName === "strconv.ParseFloat") {
     return evaluateBuiltinStrconvParseFloat(node, scope, context);
+  }
+
+  if (qualifiedName === "strings.Join") {
+    return evaluateBuiltinStringsJoin(node, scope, context);
+  }
+
+  if (qualifiedName === "slices.Index") {
+    return evaluateBuiltinSlicesIndex(node, scope, context);
+  }
+
+  if (
+    qualifiedName === "reflect.TypeOf" ||
+    qualifiedName === "reflect.TypeOf.string"
+  ) {
+    return evaluateBuiltinReflectTypeOf(node, scope, context);
   }
 
   return pushSemanticError(
@@ -2391,6 +2537,53 @@ function executeForStatement(
     }
   }
 
+  if (node.value === "infinite") {
+    const blockNode = node.children[0];
+
+    if (!blockNode) {
+      context.errors.push({
+        type: "Semantico",
+        description: "La sentencia for infinita está incompleta.",
+        line: node.line,
+        column: node.column
+      });
+      return null;
+    }
+
+    while (true) {
+      if (iterations >= maxIterations) {
+        context.errors.push({
+          type: "Semantico",
+          description: "El for superó el límite máximo de iteraciones permitido.",
+          line: node.line,
+          column: node.column
+        });
+        return null;
+      }
+
+      iterations++;
+
+      const bodySignal = executeNestedBlock(
+        blockNode,
+        loopScope,
+        context,
+        `for-body@${node.line}:${node.column}#${iterations}`
+      );
+
+      if (bodySignal?.kind === "break") {
+        return null;
+      }
+
+      if (bodySignal?.kind === "continue") {
+        continue;
+      }
+
+      if (bodySignal?.kind === "return") {
+        return bodySignal;
+      }
+    }
+  }
+
   context.errors.push({
     type: "Semantico",
     description: "Tipo de sentencia for no soportado.",
@@ -2629,6 +2822,14 @@ function executeStatement(
 
     case "SwitchStatement":
       return executeSwitchStatement(node, scope, context);
+
+    case "Block":
+      return executeNestedBlock(
+        node,
+        scope,
+        context,
+        `block@${node.line}:${node.column}`
+        );
 
     case "IncStatement":
       executeIncDecStatement(node, scope, context, 1);

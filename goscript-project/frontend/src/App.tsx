@@ -42,8 +42,9 @@ function App() {
       <header className="header">
         <h1>GoScript IDE - Base del Proyecto</h1>
         <p>
-          En este punto ya estás conectando frontend con backend.
-          El siguiente paso será reemplazar el parser temporal por Jison real.
+          Fernando Andhre Gonzalez Espinoza 202202055 | 
+          Proyecto 2 |
+          ORGANIZACIÓN DE LENGUAJES Y COMPILADORES 1
         </p>
       </header>
 

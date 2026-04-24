@@ -21,6 +21,11 @@ function createNode(kind, value, loc, children) {
   };
 }
 
+/* Clona un nodo AST para reutilizarlo en += y -= sin compartir referencia */
+function cloneNode(node) {
+  return JSON.parse(JSON.stringify(node));
+}
+
 function decodeString(text) {
   try {
     return JSON.parse(text);
@@ -98,10 +103,11 @@ function applyPostfixOps(base, ops) {
 
 %locations
 
-%token FUNC VAR TYPE STRUCT FMT PRINTLN STRCONV TYPE_INT TYPE_FLOAT64 TYPE_STRING TYPE_BOOL TYPE_RUNE
+%token FUNC VAR TYPE STRUCT FMT PRINTLN STRCONV STRINGS SLICES REFLECT TYPEOF TYPE_INT TYPE_FLOAT64 TYPE_STRING TYPE_BOOL TYPE_RUNE
 %token IDENTIFIER STRING INT FLOAT BOOL RUNE DECLARE EOF
 %token EQ NEQ GTE LTE AND OR NOT IF ELSE FOR INC DEC BREAK CONTINUE RETURN RANGE
 %token SWITCH CASE DEFAULT
+%token PLUS_ASSIGN MINUS_ASSIGN
 
 %left OR
 %left AND
@@ -127,6 +133,10 @@ function applyPostfixOps(base, ops) {
 "fmt"                                           return 'FMT';
 "Println"                                       return 'PRINTLN';
 "strconv"                                      return 'STRCONV';
+"strings"                                       return 'STRINGS';
+"slices"                                        return 'SLICES';
+"reflect"                                       return 'REFLECT';
+"TypeOf"                                        return 'TYPEOF';
 "if"                                            return 'IF';
 "else"                                          return 'ELSE';
 "for"                                           return 'FOR';
@@ -155,6 +165,8 @@ function applyPostfixOps(base, ops) {
 "||"                                            return 'OR';
 "++"                                            return 'INC';
 "--"                                            return 'DEC';
+"+="                                            return 'PLUS_ASSIGN';
+"-="                                            return 'MINUS_ASSIGN';
 
 "!"                                             return 'NOT';
 ":"                                             return ':';
@@ -279,11 +291,7 @@ struct_field_sep_opt
     string nombre
 */
 struct_field_decl
-    : IDENTIFIER field_type
-        {
-          $$ = createNode('StructField', $1, @1, [$2]);
-        }
-    | field_type IDENTIFIER
+    : field_type IDENTIFIER
         {
           $$ = createNode('StructField', $2, @2, [$1]);
         }
@@ -407,6 +415,8 @@ statement
         { $$ = $1; }
     | return_stmt
         { $$ = $1; }
+    | block
+        { $$ = $1; }
     ;
 
 /*
@@ -453,90 +463,136 @@ else_part_opt
   Soporta:
     for condicion { ... }
     for init ; cond ; update { ... }
+    for ; cond ; update { ... }
     for i, valor := range numeros { ... }
     for i := range numeros { ... }
     for _, valor := range numeros { ... }
+    for i, _ := range numeros { ... }
+
+  IMPORTANTE:
+  Esta versión evita el conflicto de:
+    for contador < 5 { ... }
+
+  porque ya no usa un init opcional "codicioso" antes de decidir
+  si es for clásico o for por condición.
 */
 
 for_stmt
-    : for_range_stmt
-        { $$ = $1; }
-    | for_classic_stmt
-        { $$ = $1; }
-    | for_condition_stmt
-        { $$ = $1; }
-    ;
-
-for_condition_stmt
-    : FOR expression block
+    : FOR range_clause block
+        {
+          $$ = createNode('ForRangeStatement', null, @1, [
+            $2.binding,
+            $2.iterable,
+            $3
+          ]);
+        }
+    | FOR for_classic_header block
+        {
+          $$ = createNode('ForStatement', 'classic', @1, [
+            $2.init,
+            $2.condition,
+            $2.update,
+            $3
+          ]);
+        }
+    | FOR expression block
         {
           $$ = createNode('ForStatement', 'condition', @1, [$2, $3]);
         }
     ;
 
-for_classic_stmt
-    : FOR for_init_opt ';' for_condition_opt ';' for_update_opt block
-        {
-          var initNode = $2 ? $2 : createNode('Empty', null, @1, []);
-          var conditionNode = $4 ? $4 : createNode('Empty', null, @1, []);
-          var updateNode = $6 ? $6 : createNode('Empty', null, @1, []);
-          $$ = createNode('ForStatement', 'classic', @1, [
-            initNode,
-            conditionNode,
-            updateNode,
-            $7
-          ]);
-        }
-    ;
-
 /*
   IMPORTANTE:
-  Se usa range_binding y range_iterable para evitar conflictos
-  con struct literals y postfix generales.
+  Aquí el DECLARE y RANGE ya van dentro de la misma regla.
+  Eso evita que IDENTIFIER se reduzca antes de tiempo.
 */
-for_range_stmt
-    : FOR range_binding DECLARE RANGE range_iterable block
+range_clause
+    : IDENTIFIER DECLARE RANGE range_iterable
         {
-          $$ = createNode('ForRangeStatement', null, @1, [
-            $2,
-            $5,
-            $6
-          ]);
+          var leftNode = createNode('Identifier', $1, @1, []);
+          $$ = {
+            binding: createNode('RangeBinding', 'single', @1, [leftNode]),
+            iterable: $4
+          };
         }
-    ;
-
-range_binding
-    : IDENTIFIER ',' IDENTIFIER
+    | IDENTIFIER ',' IDENTIFIER DECLARE RANGE range_iterable
         {
-          $$ = createNode('RangeBinding', 'pair', @1, [
-            createNode('Identifier', $1, @1, []),
-            createNode('Identifier', $3, @3, [])
-          ]);
-        }
-    | IDENTIFIER
-        {
-          $$ = createNode('RangeBinding', 'single', @1, [
-            createNode('Identifier', $1, @1, [])
-          ]);
+          var leftNode = createNode('Identifier', $1, @1, []);
+          var rightNode = createNode('Identifier', $3, @3, []);
+          $$ = {
+            binding: createNode('RangeBinding', 'pair', @1, [leftNode, rightNode]),
+            iterable: $6
+          };
         }
     ;
 
 range_iterable
-    : IDENTIFIER
+    : range_iterable '.' IDENTIFIER
         {
-          $$ = createNode('Identifier', $1, @1, []);
+          $$ = createNode('FieldAccess', $3, @2, [$1]);
         }
     | range_iterable '[' expression ']'
         {
           $$ = createNode('ArrayAccess', null, @2, [$1, $3]);
         }
-    | range_iterable '.' IDENTIFIER
+    | call_expr
         {
-          $$ = createNode('FieldAccess', $3, @2, [$1]);
+          $$ = $1;
+        }
+    | array_literal
+        {
+          $$ = $1;
+        }
+    | slice_literal
+        {
+          $$ = $1;
+        }
+    | literal
+        {
+          $$ = $1;
+        }
+    | IDENTIFIER
+        {
+          $$ = createNode('Identifier', $1, @1, []);
+        }
+    | '(' expression ')'
+        {
+          $$ = $2;
         }
     ;
 
-for_init_opt
+/*
+  Header del for clásico:
+    for init ; cond ; update
+    for ; cond ; update
+*/
+for_classic_header
+    : for_init_required ';' for_condition_opt ';' for_update_opt
+        {
+          $$ = {
+            init: $1 ? $1 : createNode('Empty', null, @1, []),
+            condition: $3 ? $3 : createNode('Empty', null, @3, []),
+            update: $5 ? $5 : createNode('Empty', null, @5, [])
+          };
+        }
+    | ';' for_condition_opt ';' for_update_opt
+        {
+          $$ = {
+            init: createNode('Empty', null, @1, []),
+            condition: $2 ? $2 : createNode('Empty', null, @2, []),
+            update: $4 ? $4 : createNode('Empty', null, @4, [])
+          };
+        }
+    ;
+
+/*
+  OJO:
+  Aquí NO usamos init opcional.
+  Solo permitimos formas que realmente pueden iniciar
+  un for clásico, para no chocar con:
+    for contador < 5 { ... }
+*/
+for_init_required
     : var_decl
         { $$ = $1; }
     | typed_decl
@@ -545,8 +601,6 @@ for_init_opt
         { $$ = $1; }
     | assignment
         { $$ = $1; }
-    |
-        { $$ = null; }
     ;
 
 for_condition_opt
@@ -568,13 +622,22 @@ for_update_opt
     ;
 
 /*
+  Binding del range:
+    for i, valor := range ...
+    for i := range ...
+    for _, valor := range ...
+    for i, _ := range ...
+*/
+
+
+/*
   ============================================================
   SWITCH
   ============================================================
 */
 
 switch_stmt
-    : SWITCH expression '{' case_clause_list_opt default_clause_opt '}'
+    : SWITCH switch_subject '{' case_clause_list_opt default_clause_opt '}'
         {
           var children = [$2];
           if ($4) {
@@ -585,6 +648,38 @@ switch_stmt
           }
           $$ = createNode('SwitchStatement', null, @1, children);
         }
+    ;
+
+/*
+  El sujeto del switch se separa del no-terminal "expression"
+  para evitar el conflicto con literales de struct.
+
+  Ejemplo del problema:
+      switch nota {
+          case 100:
+              ...
+      }
+
+  Si usamos "expression", el parser intenta leer "nota { ... }"
+  como si fuera un struct literal llamado "nota".
+*/
+switch_subject
+    : switch_subject '.' IDENTIFIER
+        {
+          $$ = createNode('FieldAccess', $3, @2, [$1]);
+        }
+    | switch_subject '[' expression ']'
+        {
+          $$ = createNode('ArrayAccess', null, @2, [$1, $3]);
+        }
+    | call_expr
+        { $$ = $1; }
+    | literal
+        { $$ = $1; }
+    | IDENTIFIER
+        { $$ = createNode('Identifier', $1, @1, []); }
+    | '(' expression ')'
+        { $$ = $2; }
     ;
 
 case_clause_list_opt
@@ -747,24 +842,28 @@ identifier_statement
             $3
           ]);
         }
+
     | IDENTIFIER INC
         {
           $$ = createNode('IncStatement', null, @1, [
             createNode('Identifier', $1, @1, [])
           ]);
         }
+
     | IDENTIFIER DEC
         {
           $$ = createNode('DecStatement', null, @1, [
             createNode('Identifier', $1, @1, [])
           ]);
         }
+
     | IDENTIFIER '(' expr_list_opt ')'
         {
           $$ = createNode('ExpressionStatement', null, @1, [
             createNode('CallExpression', $1, @1, $3)
           ]);
         }
+
     | IDENTIFIER '=' expression
         {
           $$ = createNode('Assignment', null, @2, [
@@ -772,6 +871,31 @@ identifier_statement
             $3
           ]);
         }
+
+    /* x += y  ==>  x = x + y */
+    | IDENTIFIER PLUS_ASSIGN expression
+        {
+          $$ = createNode('Assignment', '=', @2, [
+            createNode('Identifier', $1, @1, []),
+            createNode('BinaryExpression', '+', @2, [
+              createNode('Identifier', $1, @1, []),
+              $3
+            ])
+          ]);
+        }
+
+    /* x -= y  ==>  x = x - y */
+    | IDENTIFIER MINUS_ASSIGN expression
+        {
+          $$ = createNode('Assignment', '=', @2, [
+            createNode('Identifier', $1, @1, []),
+            createNode('BinaryExpression', '-', @2, [
+              createNode('Identifier', $1, @1, []),
+              $3
+            ])
+          ]);
+        }
+
     | IDENTIFIER postfix_ops '=' expression
         {
           $$ = createNode('Assignment', null, @3, [
@@ -782,6 +906,41 @@ identifier_statement
             $4
           ]);
         }
+
+    /* arr[i] += y  o  persona.edad += y */
+    | IDENTIFIER postfix_ops PLUS_ASSIGN expression
+        {
+          var leftNode = applyPostfixOps(
+            createNode('Identifier', $1, @1, []),
+            $2
+          );
+
+          $$ = createNode('Assignment', '=', @3, [
+            leftNode,
+            createNode('BinaryExpression', '+', @3, [
+              cloneNode(leftNode),
+              $4
+            ])
+          ]);
+        }
+
+    /* arr[i] -= y  o  persona.edad -= y */
+    | IDENTIFIER postfix_ops MINUS_ASSIGN expression
+        {
+          var leftNode = applyPostfixOps(
+            createNode('Identifier', $1, @1, []),
+            $2
+          );
+
+          $$ = createNode('Assignment', '=', @3, [
+            leftNode,
+            createNode('BinaryExpression', '-', @3, [
+              cloneNode(leftNode),
+              $4
+            ])
+          ]);
+        }
+
     | IDENTIFIER IDENTIFIER '=' initializer
         {
           var declaredNamedType = createNode('NamedType', $1, @1, []);
@@ -791,6 +950,7 @@ identifier_statement
             adaptInitializerForTypedDeclaration(declaredNamedType, $4, @4)
           ]);
         }
+
     | IDENTIFIER IDENTIFIER
         {
           $$ = createNode('VarDeclaration', null, @1, [
@@ -839,7 +999,51 @@ short_decl
 assignment
     : assignable '=' expression
         {
-          $$ = createNode('Assignment', null, @2, [$1, $3]);
+          $$ = createNode('Assignment', '=', @2, [$1, $3]);
+        }
+
+    /* a += b  ==>  a = a + b */
+    | assignable PLUS_ASSIGN expression
+        {
+          $$ = createNode(
+            'Assignment',
+            '=',
+            @2,
+            [
+              $1,
+              createNode(
+                'BinaryExpression',
+                '+',
+                @2,
+                [
+                  cloneNode($1),
+                  $3
+                ]
+              )
+            ]
+          );
+        }
+
+    /* a -= b  ==>  a = a - b */
+    | assignable MINUS_ASSIGN expression
+        {
+          $$ = createNode(
+            'Assignment',
+            '=',
+            @2,
+            [
+              $1,
+              createNode(
+                'BinaryExpression',
+                '-',
+                @2,
+                [
+                  cloneNode($1),
+                  $3
+                ]
+              )
+            ]
+          );
         }
     ;
 
@@ -1044,6 +1248,22 @@ call_expr
     | STRCONV '.' IDENTIFIER '(' expr_list_opt ')'
         {
           $$ = createNode('QualifiedCallExpression', 'strconv.' + $3, @1, $5);
+        }
+    | STRINGS '.' IDENTIFIER '(' expr_list_opt ')'
+        {
+          $$ = createNode('QualifiedCallExpression', 'strings.' + $3, @1, $5);
+        }
+    | SLICES '.' IDENTIFIER '(' expr_list_opt ')'
+        {
+          $$ = createNode('QualifiedCallExpression', 'slices.' + $3, @1, $5);
+        }
+    | REFLECT '.' TYPEOF '(' expr_list_opt ')'
+        {
+          $$ = createNode('QualifiedCallExpression', 'reflect.TypeOf', @1, $5);
+        }
+    | REFLECT '.' TYPEOF '(' expr_list_opt ')' '.' TYPE_STRING '(' ')'
+        {
+          $$ = createNode('QualifiedCallExpression', 'reflect.TypeOf.string', @1, $5);
         }
     ;
 
