@@ -1,4 +1,5 @@
 import type { AstNode } from "../ast/AstNode";
+import type { CompilerError } from "../shared/types";
 
 type GeneratedParserLike = {
   parse: (source: string) => unknown;
@@ -6,6 +7,7 @@ type GeneratedParserLike = {
   yy?: {
     shared?: {
       ast?: unknown;
+      lexicalErrors?: CompilerError[];
     };
   };
 };
@@ -21,6 +23,12 @@ const parser: GeneratedParserLike =
 
 parser.yy = parser.yy ?? {};
 parser.yy.shared = parser.yy.shared ?? {};
+
+let lastLexicalErrors: CompilerError[] = [];
+
+export function getLastLexicalErrors(): CompilerError[] {
+  return [...lastLexicalErrors];
+}
 
 parser.parseError = (_message: string, hash: any) => {
   const rawText =
@@ -68,11 +76,17 @@ function normalizeNode(candidate: unknown): AstNode {
 
 export function parseSource(source: string): AstNode {
   try {
-    parser.yy = parser.yy ?? {};
+      parser.yy = parser.yy ?? {};
     parser.yy.shared = parser.yy.shared ?? {};
+    parser.yy.shared.lexicalErrors = [];
+    lastLexicalErrors = [];
     delete parser.yy.shared.ast;
 
     const rawResult = parser.parse(source);
+
+    lastLexicalErrors = Array.isArray(parser.yy.shared.lexicalErrors)
+      ? [...parser.yy.shared.lexicalErrors]
+      : [];
 
     console.error("Resultado crudo del parser:", rawResult);
     console.error("AST guardado en parser.yy.shared.ast:", parser.yy.shared.ast);
@@ -100,7 +114,11 @@ export function parseSource(source: string): AstNode {
       line: 1,
       column: 1
     };
-  } catch (error) {
+    } catch (error) {
+    lastLexicalErrors = Array.isArray(parser.yy?.shared?.lexicalErrors)
+      ? [...(parser.yy?.shared?.lexicalErrors ?? [])]
+      : [];
+
     console.error("Error real del parser:", error);
     throw error;
   }

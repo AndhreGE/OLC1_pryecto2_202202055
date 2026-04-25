@@ -1388,12 +1388,17 @@ break;
 case 64:return 5;
 break;
 case 65:
-  throw {
+  yy.shared = yy.shared || {};
+  yy.shared.lexicalErrors = yy.shared.lexicalErrors || [];
+
+  yy.shared.lexicalErrors.push({
     type: 'Lexico',
     description: 'El símbolo "' + yy_.yytext + '" no es aceptado en el lenguaje.',
     line: yy_.yylloc.first_line || 1,
     column: (yy_.yylloc.first_column || 0) + 1
-  };
+  });
+
+  return this.lex();
 
 break;
 case 66:console.log(yy_.yytext);

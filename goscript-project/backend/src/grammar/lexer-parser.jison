@@ -199,12 +199,17 @@ function applyPostfixOps(base, ops) {
 <<EOF>>                                         return 'EOF';
 
 . {
-  throw {
+  yy.shared = yy.shared || {};
+  yy.shared.lexicalErrors = yy.shared.lexicalErrors || [];
+
+  yy.shared.lexicalErrors.push({
     type: 'Lexico',
     description: 'El símbolo "' + yytext + '" no es aceptado en el lenguaje.',
     line: yylloc.first_line || 1,
     column: (yylloc.first_column || 0) + 1
-  };
+  });
+
+  return this.lex();
 }
 /lex
 

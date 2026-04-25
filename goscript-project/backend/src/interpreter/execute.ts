@@ -1,5 +1,5 @@
 import type { AstNode } from "../ast/AstNode";
-import { parseSource } from "../grammar/parserAdapter";
+import { getLastLexicalErrors, parseSource } from "../grammar/parserAdapter";
 import { astToDot } from "../reports/astToDot";
 import type { CompilerError, ExecutionResult, SymbolEntry } from "../shared/types";
 
@@ -3008,11 +3008,16 @@ export function executeSource(source: string): ExecutionResult {
   }
 
   let ast: AstNode;
+  let lexicalErrors: CompilerError[] = [];
 
   try {
     ast = parseSource(normalized);
+    lexicalErrors = getLastLexicalErrors();
   } catch (error) {
     console.error("Error atrapado en executeSource:", error);
+
+    // Recuperar también los errores léxicos acumulados antes del error sintáctico
+    lexicalErrors = getLastLexicalErrors();
 
     const compilerError =
       error &&
@@ -3038,7 +3043,7 @@ export function executeSource(source: string): ExecutionResult {
 
     return {
       console: "",
-      errors: [compilerError],
+      errors: [...lexicalErrors, compilerError],
       symbolTable: [],
       ast: null,
       astDot: ""
@@ -3052,7 +3057,8 @@ export function executeSource(source: string): ExecutionResult {
     structs: new Map<string, StructInfo>(),
     symbolTable: [],
     consoleLines: [],
-    errors: [],
+    // Iniciar el contexto con los errores léxicos recuperados del lexer
+    errors: [...lexicalErrors],
     globalScope,
     callCounter: 0
   };
