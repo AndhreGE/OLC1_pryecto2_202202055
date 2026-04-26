@@ -1,0 +1,240 @@
+func main() {
+    fmt.Println("==============================================")
+    fmt.Println("EVALUACION AUTOMATICA - FUNCIONALIDADES INTERMEDIAS")
+    fmt.Println("==============================================")
+    fmt.Println()
+
+    var puntosEntornos int = 0
+    var puntosIfElse int = 0
+    var puntosForWhile int = 0
+    var puntosForClasico int = 0
+    var puntosForRange int = 0
+    var puntosSwitch int = 0
+    var puntosBreak int = 0
+    var puntosContinue int = 0
+    var total int = 0
+
+    fmt.Println("[1] Evaluando manejo de entornos...")
+    base := 10
+    control := 5
+    var copiaBloque1 int = 0
+    var copiaBloque2 int = 0
+    var valorInterno int = 0
+
+    {
+        base = base + control
+        control := 20
+        copiaBloque1 = control
+        {
+            control := 3
+            copiaBloque2 = control
+            valorInterno = base + copiaBloque1 + copiaBloque2
+        }
+        base = base + control
+    }
+
+    if base == 35 && control == 5 && copiaBloque1 == 20 && copiaBloque2 == 3 && valorInterno == 38 {
+        puntosEntornos = 2
+        fmt.Println("Resultado: manejo de entornos correcto")
+    } else {
+        fmt.Println("Resultado: manejo de entornos incorrecto")
+    }
+    fmt.Println()
+
+    fmt.Println("[2] Evaluando if / else...")
+    nota := 78
+    asistencia := true
+    proyecto := 61
+    decision := ""
+
+    if nota >= 90 {
+        decision = "sobresaliente"
+    } else if nota >= 70 && asistencia {
+        if proyecto > 60 {
+            decision = "aprobado"
+        } else {
+            decision = "recuperacion"
+        }
+    } else {
+        decision = "reprobado"
+    }
+
+    if decision == "aprobado" {
+        puntosIfElse = 2
+        fmt.Println("Resultado: if / else correcto ->", decision)
+    } else {
+        fmt.Println("Resultado: if / else incorrecto ->", decision)
+    }
+    fmt.Println()
+
+    fmt.Println("[3] Evaluando for tipo while...")
+    i := 1
+    sumaWhile := 0
+    ultimoWhile := 0
+    lineasWhile := 0
+
+    fmt.Println("Figura 1: triangulo creciente")
+    for i <= 5 {
+        fmt.Println(i * "#")
+        sumaWhile = sumaWhile + i
+        ultimoWhile = i
+        lineasWhile = lineasWhile + 1
+        i = i + 1
+    }
+
+    if sumaWhile == 15 && ultimoWhile == 5 && lineasWhile == 5 && i == 6 {
+        puntosForWhile = 2
+        fmt.Println("Resultado: for tipo while correcto")
+    } else {
+        fmt.Println("Resultado: for tipo while incorrecto")
+    }
+    fmt.Println()
+
+    fmt.Println("[4] Evaluando for clasico...")
+    filasClasico := 0
+    bordes := 0
+    centros := 0
+
+    fmt.Println("Figura 2: marco cuadrado")
+    for fila := 1; fila <= 4; fila = fila + 1 {
+        linea := ""
+        filasClasico = filasClasico + 1
+        for columna := 1; columna <= 4; columna = columna + 1 {
+            if fila == 1 || fila == 4 || columna == 1 || columna == 4 {
+                linea = linea + "*"
+                bordes = bordes + 1
+            } else {
+                linea = linea + "."
+                centros = centros + 1
+            }
+        }
+        fmt.Println(linea)
+    }
+
+    if filasClasico == 4 && bordes == 12 && centros == 4 {
+        puntosForClasico = 2
+        fmt.Println("Resultado: for clasico correcto")
+    } else {
+        fmt.Println("Resultado: for clasico incorrecto")
+    }
+    fmt.Println()
+
+    fmt.Println("[5] Evaluando for range...")
+    alturas := []int{2, 4, 1, 3}
+    sumaRange := 0
+    ultimoIndice := -1
+    ultimoValor := -1
+    barras := 0
+
+    fmt.Println("Figura 3: barras por alturas")
+    for indice, valor := range alturas {
+        fmt.Println(valor * "+")
+        sumaRange = sumaRange + (indice + 1) * valor
+        ultimoIndice = indice
+        ultimoValor = valor
+        barras = barras + 1
+    }
+
+    if sumaRange == 22 && ultimoIndice == 3 && ultimoValor == 3 && barras == 4 {
+        puntosForRange = 2
+        fmt.Println("Resultado: for range correcto")
+    } else {
+        fmt.Println("Resultado: for range incorrecto")
+    }
+    fmt.Println()
+
+    fmt.Println("[6] Evaluando switch / case...")
+    nivel := 4
+    mensajeSwitch := ""
+
+    switch nivel {
+    case 1:
+        mensajeSwitch = "inicio"
+    case 2:
+        mensajeSwitch = "basico"
+    case 3:
+        mensajeSwitch = "intermedio"
+    case 4:
+        mensajeSwitch = "avanzado"
+    default:
+        mensajeSwitch = "desconocido"
+    }
+
+    if mensajeSwitch == "avanzado" {
+        puntosSwitch = 2
+        fmt.Println("Resultado: switch / case correcto ->", mensajeSwitch)
+    } else {
+        fmt.Println("Resultado: switch / case incorrecto ->", mensajeSwitch)
+    }
+    fmt.Println()
+
+    fmt.Println("[7] Evaluando break...")
+    buscado := 0
+    pasosBreak := 0
+    n := 1
+
+    for n <= 50 {
+        pasosBreak = pasosBreak + 1
+        if n > 20 && n % 7 == 0 {
+            buscado = n
+            break
+        }
+        n = n + 1
+    }
+
+    if buscado == 21 && pasosBreak == 21 {
+        puntosBreak = 2
+        fmt.Println("Resultado: break correcto -> primer multiplo encontrado:", buscado)
+    } else {
+        fmt.Println("Resultado: break incorrecto")
+    }
+    fmt.Println()
+
+    fmt.Println("[8] Evaluando continue...")
+    sumaImpares := 0
+    impresos := 0
+
+    fmt.Println("Figura 4: solo filas impares")
+    for valor := 1; valor <= 7; valor = valor + 1 {
+        if valor % 2 == 0 {
+            continue
+        }
+        fmt.Println(valor * "o")
+        sumaImpares = sumaImpares + valor
+        impresos = impresos + 1
+    }
+
+    if sumaImpares == 16 && impresos == 4 {
+        puntosContinue = 2
+        fmt.Println("Resultado: continue correcto")
+    } else {
+        fmt.Println("Resultado: continue incorrecto")
+    }
+    fmt.Println()
+
+    total = total + puntosEntornos
+    total = total + puntosIfElse
+    total = total + puntosForWhile
+    total = total + puntosForClasico
+    total = total + puntosForRange
+    total = total + puntosSwitch
+    total = total + puntosBreak
+    total = total + puntosContinue
+
+    fmt.Println("==============================================================")
+    fmt.Println("TABLA DE RESULTADOS - FUNCIONALIDADES INTERMEDIAS")
+    fmt.Println("==============================================================")
+    fmt.Println("Criterio                          | Obtenido | Valor")
+    fmt.Println("--------------------------------------------------------------")
+    fmt.Println("Manejo de entornos                |", puntosEntornos, "| 2")
+    fmt.Println("If / Else                         |", puntosIfElse, "| 2")
+    fmt.Println("For Tipo While                    |", puntosForWhile, "| 2")
+    fmt.Println("For Clasico                       |", puntosForClasico, "| 2")
+    fmt.Println("For Range                         |", puntosForRange, "| 2")
+    fmt.Println("Switch / Case                     |", puntosSwitch, "| 2")
+    fmt.Println("Break                             |", puntosBreak, "| 2")
+    fmt.Println("Continue                          |", puntosContinue, "| 2")
+    fmt.Println("--------------------------------------------------------------")
+    fmt.Println("TOTAL                             |", total, "| 16")
+    fmt.Println("==============================================================")
+}

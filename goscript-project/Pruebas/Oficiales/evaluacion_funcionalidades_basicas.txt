@@ -1,0 +1,202 @@
+func main() {
+fmt.Println("==============================================================")
+fmt.Println("EVALUACION AUTOMATICA - FUNCIONALIDADES BASICAS")
+fmt.Println("Esta prueba valida: declaracion, asignacion, aritmetica,")
+fmt.Println("relacionales, logicas, fmt.Println, nil y opcionalidad del ;")
+fmt.Println("==============================================================")
+fmt.Println()
+
+var puntajeDeclaracion float64 = 0.0
+var puntajeAsignacion float64 = 0.0
+var puntajeAritmeticas float64 = 0.0
+var puntajeRelacionales float64 = 0.0
+var puntajeLogicas float64 = 0.0
+var puntajePrintln float64 = 0.0
+var puntajeNil float64 = 0.0
+var puntajePuntoComa float64 = 0.0
+var total float64 = 0.0
+
+fmt.Println("-> Evaluando: Declaracion de variables")
+var enteroA int = 14
+var enteroB int
+var enteroC int = 9;
+var decimalA float64 = 12.5
+var decimalB float64 = 4
+var decimalC float64
+textoA := "Go"
+textoB := "Script"
+var textoC string
+var banderaA bool = true
+var banderaB bool
+var simboloA rune = 'A'
+var simboloB rune
+var listaNula []int
+var listaCopia []int
+listaCopia = listaNula
+
+if enteroA == 14 && enteroB == 0 && enteroC == 9 && decimalA == 12.5 && decimalB == 4.0 && decimalC == 0.0 && textoA == "Go" && textoB == "Script" && textoC == "" && banderaA == true && banderaB == false && simboloA == 'A' && simboloB == 0 {
+puntajeDeclaracion = 1.0
+fmt.Println("Resultado declaracion: correcta -> +1.0")
+} else {
+fmt.Println("Resultado declaracion: incorrecta -> +0.0")
+}
+fmt.Println("Valores declarados:", enteroA, enteroB, enteroC, decimalA, decimalB, decimalC, textoA, textoB, textoC, banderaA, banderaB, simboloA, simboloB)
+fmt.Println()
+
+fmt.Println("-> Evaluando: Asignacion de variables")
+enteroB = 30
+enteroA = enteroA + 6
+enteroC = enteroC * 2;
+decimalA = decimalA + 7.5
+decimalB = 18 / 4.0
+decimalC = decimalA - decimalB
+textoA = textoA + textoB
+textoB = "Proyecto " + textoB
+textoC = "Calificacion"
+banderaA = false
+banderaB = !banderaB
+simboloA = 'Z'
+simboloB = 'B';
+
+if enteroA == 20 && enteroB == 30 && enteroC == 18 && decimalA == 20.0 && decimalB == 4.5 && decimalC == 15.5 && textoA == "GoScript" && textoB == "Proyecto Script" && textoC == "Calificacion" && banderaA == false && banderaB == true && simboloA == 'Z' && simboloB == 'B' {
+puntajeAsignacion = 1.0
+fmt.Println("Resultado asignacion: correcta -> +1.0")
+} else {
+fmt.Println("Resultado asignacion: incorrecta -> +0.0")
+}
+fmt.Println("Valores asignados:", enteroA, enteroB, enteroC, decimalA, decimalB, decimalC, textoA, textoB, textoC, banderaA, banderaB, simboloA, simboloB)
+fmt.Println()
+
+fmt.Println("-> Evaluando: Operaciones aritmeticas")
+var arit1 int = (enteroA + enteroB) * 2 - 5
+var arit2 float64 = (decimalA + decimalB) / 2.0
+var arit3 int = 44 % 6
+var arit4 int = -(-10) + 2 * 3
+var arit5 string = "Nivel " + "Basico"
+var arit6 int = 5 + true
+var arit7 int = 3 * 'A'
+var arit8 float64 = decimalB + enteroC / 2
+var arit9 float64 = 10 + 2.5
+var acumulador int = 50
+var desplazamiento float64 = 10.0
+acumulador += 25
+acumulador -= 5
+desplazamiento += 4
+desplazamiento -= 1.5
+
+if arit1 == 95 && arit2 == 12.25 && arit3 == 2 && arit4 == 16 && arit5 == "Nivel Basico" && arit6 == 6 && arit7 == 195 && arit8 == 13.5 && arit9 == 12.5 && acumulador == 70 && desplazamiento == 12.5 {
+puntajeAritmeticas = 1.0
+fmt.Println("Resultado aritmeticas: correctas -> +1.0")
+} else {
+fmt.Println("Resultado aritmeticas: incorrectas -> +0.0")
+}
+fmt.Println("Aritmetica 1:", arit1)
+fmt.Println("Aritmetica 2:", arit2)
+fmt.Println("Aritmetica 3:", arit3)
+fmt.Println("Aritmetica 4:", arit4)
+fmt.Println("Aritmetica 5:", arit5)
+fmt.Println("Aritmetica 6:", arit6)
+fmt.Println("Aritmetica 7:", arit7)
+fmt.Println("Aritmetica 8:", arit8)
+fmt.Println("Aritmetica 9:", arit9)
+fmt.Println("Acumulador final:", acumulador)
+fmt.Println("Desplazamiento final:", desplazamiento)
+fmt.Println()
+
+fmt.Println("-> Evaluando: Operaciones relacionales")
+var rel1 bool = enteroA < enteroB
+var rel2 bool = enteroC >= 18
+var rel3 bool = decimalA == 20.0
+var rel4 bool = decimalB != 5.0
+var rel5 bool = textoA == "GoScript"
+var rel6 bool = textoB != "Script"
+var rel7 bool = 'A' < 'Z'
+var rel8 bool = 35 == 35.0
+var rel9 bool = "Alpha" < "Beta"
+
+if rel1 == true && rel2 == true && rel3 == true && rel4 == true && rel5 == true && rel6 == true && rel7 == true && rel8 == true && rel9 == true {
+puntajeRelacionales = 1.0
+fmt.Println("Resultado relacionales: correctas -> +1.0")
+} else {
+fmt.Println("Resultado relacionales: incorrectas -> +0.0")
+}
+fmt.Println("Relacionales:", rel1, rel2, rel3, rel4, rel5, rel6, rel7, rel8, rel9)
+fmt.Println()
+
+fmt.Println("-> Evaluando: Operaciones logicas")
+var log1 bool = rel1 && rel2
+var log2 bool = rel3 && rel4 && rel5
+var log3 bool = rel6 || false
+var log4 bool = !(rel7 && false)
+var log5 bool = (rel8 && rel9) || banderaB
+var log6 bool = !banderaA
+
+if log1 == true && log2 == true && log3 == true && log4 == true && log5 == true && log6 == true {
+puntajeLogicas = 1.0
+fmt.Println("Resultado logicas: correctas -> +1.0")
+} else {
+fmt.Println("Resultado logicas: incorrectas -> +0.0")
+}
+fmt.Println("Logicas:", log1, log2, log3, log4, log5, log6)
+fmt.Println()
+
+fmt.Println("-> Evaluando: fmt.Println")
+fmt.Println("Linea 1:", enteroA, enteroB, enteroC)
+fmt.Println("Linea 2:", decimalA, decimalB, decimalC)
+fmt.Println("Linea 3:", textoA, textoB, textoC)
+fmt.Println("Linea 4:", banderaA, banderaB, simboloA, simboloB)
+fmt.Println("Linea 5:", arit1, rel1, log1, "Fin de impresion")
+fmt.Println()
+if enteroA == 20 && decimalA == 20.0 && textoA == "GoScript" && banderaB == true && simboloA == 'Z' {
+puntajePrintln = 1.0
+fmt.Println("Resultado fmt.Println: ejecutado correctamente -> +1.0")
+} else {
+fmt.Println("Resultado fmt.Println: incorrecto -> +0.0")
+}
+fmt.Println()
+
+fmt.Println("-> Evaluando: Manejo de valor nulo")
+fmt.Println("Lista nula original:", listaNula)
+fmt.Println("Lista nula copiada:", listaCopia)
+if listaNula == nil && listaCopia == nil {
+puntajeNil = 0.5
+fmt.Println("Resultado nil: correcto -> +0.5")
+} else {
+fmt.Println("Resultado nil: incorrecto -> +0.0")
+}
+fmt.Println()
+
+fmt.Println("-> Evaluando: Opcionalidad del ;")
+var semiA int = 100;
+var semiB float64 = 50.0;
+var semiTexto string = "con ;";
+semiA = semiA + 25;
+semiB = semiB / 4.0
+semiTexto = semiTexto + " y sin ;"
+if semiA == 125 && semiB == 12.5 && semiTexto == "con ; y sin ;" {
+puntajePuntoComa = 0.5
+fmt.Println("Resultado punto y coma: correcto -> +0.5")
+} else {
+fmt.Println("Resultado punto y coma: incorrecto -> +0.0")
+}
+fmt.Println("Sentencias mixtas:", semiA, semiB, semiTexto)
+fmt.Println()
+
+total = puntajeDeclaracion + puntajeAsignacion + puntajeAritmeticas + puntajeRelacionales + puntajeLogicas + puntajePrintln + puntajeNil + puntajePuntoComa
+
+fmt.Println("==============================================================")
+fmt.Println("TABLA FINAL DE PUNTEOS - FUNCIONALIDADES BASICAS")
+fmt.Println("==============================================================")
+fmt.Println("| Criterio                         | Punteo obtenido |")
+fmt.Println("| Declaracion de variables         |", puntajeDeclaracion, "|")
+fmt.Println("| Asignacion de variables          |", puntajeAsignacion, "|")
+fmt.Println("| Operaciones aritmeticas          |", puntajeAritmeticas, "|")
+fmt.Println("| Operaciones relacionales         |", puntajeRelacionales, "|")
+fmt.Println("| Operaciones logicas              |", puntajeLogicas, "|")
+fmt.Println("| fmt.Println                      |", puntajePrintln, "|")
+fmt.Println("| Manejo de valor nulo             |", puntajeNil, "|")
+fmt.Println("| Opcionalidad del ;               |", puntajePuntoComa, "|")
+fmt.Println("==============================================================")
+fmt.Println("| TOTAL                            |", total, "de 7.0 |")
+fmt.Println("==============================================================")
+}

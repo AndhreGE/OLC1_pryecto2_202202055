@@ -1,0 +1,149 @@
+struct Sensor {
+string codigo;
+float64 temperatura;
+bool calibrado;
+}
+
+struct Motor {
+string tipo;
+int hp;
+Sensor sensor;
+}
+
+struct Vehiculo {
+string marca;
+string modelo;
+int anio;
+bool encendido;
+Motor motor;
+}
+
+func main() {
+fmt.Println("==============================================================")
+fmt.Println("EVALUACION AUTOMATICA - STRUCTS")
+fmt.Println("Seccion evaluada: Structs (20 puntos)")
+fmt.Println("Nivel maximo de anidamiento usado: 3")
+fmt.Println("==============================================================")
+
+puntajeDeclaracion := 0
+puntajeInstanciacion := 0
+puntajeAsignacionPrimitivos := 0
+puntajeAccesoPrimitivos := 0
+puntajeAsignacionAnidados := 0
+puntajeAccesoAnidados := 0
+total := 0
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Declaracion (4 puntos)")
+Sensor sensorBase = { codigo: "SN-100", temperatura: 35.5, calibrado: true }
+Motor motorBase = { tipo: "Diesel", hp: 180, sensor: sensorBase }
+Vehiculo vehiculoBase = { marca: "Ares", modelo: "Tundra", anio: 2022, encendido: true, motor: motorBase }
+
+fmt.Println("Sensor base:", sensorBase)
+fmt.Println("Motor base:", motorBase)
+fmt.Println("Vehiculo base:", vehiculoBase)
+
+if sensorBase.codigo == "SN-100" && sensorBase.temperatura == 35.5 && sensorBase.calibrado == true && motorBase.tipo == "Diesel" && motorBase.hp == 180 && vehiculoBase.marca == "Ares" && vehiculoBase.modelo == "Tundra" && vehiculoBase.anio == 2022 && vehiculoBase.encendido == true {
+puntajeDeclaracion = 4
+}
+total = total + puntajeDeclaracion
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Instanciacion (4 puntos)")
+Sensor sensorPrueba = { codigo: "SN-250", temperatura: 41.25, calibrado: false }
+Motor motorPrueba = { tipo: "Hibrido", hp: 220, sensor: sensorPrueba }
+Vehiculo unidad = { marca: "Orion", modelo: "Falcon", anio: 2024, encendido: false, motor: motorPrueba }
+
+fmt.Println("Sensor prueba:", sensorPrueba)
+fmt.Println("Motor prueba:", motorPrueba)
+fmt.Println("Unidad:", unidad)
+
+if sensorPrueba.codigo == "SN-250" && sensorPrueba.temperatura == 41.25 && sensorPrueba.calibrado == false && motorPrueba.tipo == "Hibrido" && motorPrueba.hp == 220 && unidad.marca == "Orion" && unidad.modelo == "Falcon" && unidad.anio == 2024 && unidad.encendido == false {
+puntajeInstanciacion = 4
+}
+total = total + puntajeInstanciacion
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Asignacion a propiedades de tipos primitivos (4 puntos)")
+sensorBase.codigo = "SN-900"
+sensorBase.temperatura = 48.75
+motorBase.hp = 205
+unidad.marca = "ORION-X"
+
+fmt.Println("Sensor base modificado:", sensorBase)
+fmt.Println("Motor base modificado:", motorBase)
+fmt.Println("Unidad modificada:", unidad)
+
+if sensorBase.codigo == "SN-900" && sensorBase.temperatura == 48.75 && motorBase.hp == 205 && unidad.marca == "ORION-X" {
+puntajeAsignacionPrimitivos = 4
+}
+total = total + puntajeAsignacionPrimitivos
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso a propiedades de tipos primitivos (3 puntos)")
+var lecturaCodigo string = sensorBase.codigo
+var lecturaTemp float64 = sensorBase.temperatura
+var lecturaTipo string = motorPrueba.tipo
+var lecturaModelo string = unidad.modelo
+var lecturaAnio int = unidad.anio
+
+fmt.Println("lecturaCodigo:", lecturaCodigo)
+fmt.Println("lecturaTemp:", lecturaTemp)
+fmt.Println("lecturaTipo:", lecturaTipo)
+fmt.Println("lecturaModelo:", lecturaModelo)
+fmt.Println("lecturaAnio:", lecturaAnio)
+
+if lecturaCodigo == "SN-900" && lecturaTemp == 48.75 && lecturaTipo == "Hibrido" && lecturaModelo == "Falcon" && lecturaAnio == 2024 {
+puntajeAccesoPrimitivos = 3
+}
+total = total + puntajeAccesoPrimitivos
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Asignacion a propiedades dentro de structs (3 puntos)")
+unidad.motor.hp = 260
+unidad.motor.sensor.codigo = "SN-777"
+unidad.motor.sensor.temperatura = 72.5
+unidad.motor.sensor.calibrado = true
+unidad.motor.tipo = "Electrico"
+
+fmt.Println("Unidad con anidamiento modificado:", unidad)
+
+if unidad.motor.hp == 260 && unidad.motor.sensor.codigo == "SN-777" && unidad.motor.sensor.temperatura == 72.5 && unidad.motor.sensor.calibrado == true && unidad.motor.tipo == "Electrico" {
+puntajeAsignacionAnidados = 3
+}
+total = total + puntajeAsignacionAnidados
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso a propiedades dentro de structs anidados (2 puntos)")
+var codigoAnidado string = unidad.motor.sensor.codigo
+var tempAnidada float64= unidad.motor.sensor.temperatura
+var calibracionAnidada bool = unidad.motor.sensor.calibrado
+var hpAnidado int = unidad.motor.hp
+var tipoAnidado string = unidad.motor.tipo
+
+fmt.Println("codigoAnidado:", codigoAnidado)
+fmt.Println("tempAnidada:", tempAnidada)
+fmt.Println("calibracionAnidada:", calibracionAnidada)
+fmt.Println("hpAnidado:", hpAnidado)
+fmt.Println("tipoAnidado:", tipoAnidado)
+
+if codigoAnidado == "SN-777" && tempAnidada == 72.5 && calibracionAnidada == true && hpAnidado == 260 && tipoAnidado == "Electrico" {
+puntajeAccesoAnidados = 2
+}
+total = total + puntajeAccesoAnidados
+
+fmt.Println("")
+fmt.Println("==============================================================")
+fmt.Println("TABLA DE PUNTEO - STRUCTS")
+fmt.Println("==============================================================")
+fmt.Println("| Rubro                                      | Valor | Obtenido |")
+fmt.Println("| Declaracion                                | 4     |", puntajeDeclaracion, "|")
+fmt.Println("| Instanciacion                              | 4     |", puntajeInstanciacion, "|")
+fmt.Println("| Asignacion propiedades primitivas          | 4     |", puntajeAsignacionPrimitivos, "|")
+fmt.Println("| Acceso propiedades primitivas              | 3     |", puntajeAccesoPrimitivos, "|")
+fmt.Println("| Asignacion en structs anidados             | 3     |", puntajeAsignacionAnidados, "|")
+fmt.Println("| Acceso en structs anidados                 | 2     |", puntajeAccesoAnidados, "|")
+fmt.Println("==============================================================")
+fmt.Println("| TOTAL                                      | 20    |", total, "|")
+fmt.Println("==============================================================")
+}

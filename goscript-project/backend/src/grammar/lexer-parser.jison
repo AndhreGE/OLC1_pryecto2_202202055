@@ -899,6 +899,13 @@ postfix_ops
         { $$ = [$1]; }
     ;
 
+postfix_ops_opt
+    : postfix_ops
+        { $$ = $1; }
+    |
+        { $$ = []; }
+    ;
+
 postfix_op
     : '[' expression ']'
         {
@@ -1011,22 +1018,12 @@ anonymous_struct_literal
     ;
 
 assignable
-    : IDENTIFIER
+    : IDENTIFIER postfix_ops_opt
         {
-          $$ = createNode('Identifier', $1, @1, []);
-        }
-    | primary_expression '[' expression ']'
-        {
-          $$ = createNode('IndexAccess', null, @2, [
-            $1,
-            $3
-          ]);
-        }
-    | primary_expression '.' IDENTIFIER
-        {
-          $$ = createNode('FieldAccess', $3, @2, [
-            $1
-          ]);
+          $$ = applyPostfixOps(
+            createNode('Identifier', $1, @1, []),
+            $2
+          );
         }
     ;
 

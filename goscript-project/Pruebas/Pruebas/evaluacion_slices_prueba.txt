@@ -1,0 +1,191 @@
+func main() {
+    fmt.Println("==============================================================")
+    fmt.Println("PRUEBA ALTERNA - EVALUACION AUTOMATICA DE SLICES")
+    fmt.Println("Seccion evaluada: Slices (32 puntos)")
+    fmt.Println("==============================================================")
+
+    puntajeCreacion := 0
+    puntajeAcceso := 0
+    puntajeArrayMulti := 0
+    puntajeAccesoMulti := 0
+    puntajeIndex := 0
+    puntajeJoin := 0
+    puntajeLen := 0
+    puntajeAppend := 0
+    total := 0
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Creacion de slices (5 puntos)")
+    numeros := []int{11, 22, 33, 44, 55, 66}
+    temperaturas := []float64{18.5, 19.75, 21.0, 23.5}
+    nombres := []string{"Ana", "Luis", "Marta", "Diego"}
+    estados := []bool{false, false, true, true, false}
+    letras := []rune{'Q', 'W', 'E', 'R'}
+    sinDatos := []string{}
+
+    fmt.Println("Numeros:", numeros)
+    fmt.Println("Temperaturas:", temperaturas)
+    fmt.Println("Nombres:", nombres)
+    fmt.Println("Estados:", estados)
+    fmt.Println("Letras:", letras)
+    fmt.Println("Sin datos:", sinDatos)
+
+    if numeros[1] == 22 && numeros[5] == 66 && temperaturas[0] == 18.5 && temperaturas[3] == 23.5 && nombres[2] == "Marta" && estados[2] == true && letras[3] == 'R' {
+        puntajeCreacion = 5
+    }
+    total = total + puntajeCreacion
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Acceso de Elementos (4 puntos)")
+    anteriorNumero := numeros[3]
+    anteriorNombre := nombres[1]
+    anteriorEstado := estados[4]
+    anteriorLetra := letras[0]
+
+    numeros[3] = 404
+    nombres[1] = "LUIS"
+    estados[4] = true
+    letras[0] = 'Z'
+
+    fmt.Println("Anterior numeros[3]:", anteriorNumero)
+    fmt.Println("Anterior nombres[1]:", anteriorNombre)
+    fmt.Println("Anterior estados[4]:", anteriorEstado)
+    fmt.Println("Anterior letras[0]:", anteriorLetra)
+    fmt.Println("Numeros modificados:", numeros)
+    fmt.Println("Nombres modificados:", nombres)
+    fmt.Println("Estados modificados:", estados)
+    fmt.Println("Letras modificadas:", letras)
+
+    if anteriorNumero == 44 && anteriorNombre == "Luis" && anteriorEstado == false && anteriorLetra == 'Q' && numeros[3] == 404 && nombres[1] == "LUIS" && estados[4] == true && letras[0] == 'Z' {
+        puntajeAcceso = 4
+    }
+    total = total + puntajeAcceso
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Array Multidimensional (6 puntos)")
+    nuevaFila := []int{99, 88, 77, 66}
+
+    tablero := [][]int{{5, 10, 15}, {2, 4, 6, 8}, {100, 200}, {7, 14, 21, 28, 35}}
+    tablero = append(tablero, nuevaFila)
+
+    rutas := [][]string{{"norte", "sur"}, {"este", "oeste", "centro"}, {"arriba"}}
+
+    fmt.Println("Tablero:", tablero)
+    fmt.Println("Rutas:", rutas)
+
+    if tablero[0][2] == 15 && tablero[1][3] == 8 && tablero[2][1] == 200 && tablero[4][0] == 99 && tablero[4][3] == 66 && rutas[1][2] == "centro" {
+        puntajeArrayMulti = 6
+    }
+    total = total + puntajeArrayMulti
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Acceso Array Multidimensional (6 puntos)")
+    previoA := tablero[0][1]
+    previoB := tablero[3][4]
+    previoC := tablero[4][2]
+
+    tablero[0][1] = 500
+    tablero[3][4] = 350
+    tablero[4][2] = 770
+
+    extraidos := []int{}
+    extraidos = append(extraidos, tablero[0][1])
+    extraidos = append(extraidos, tablero[2][0])
+    extraidos = append(extraidos, tablero[4][2])
+    extraidos = append(extraidos, tablero[1][2])
+
+    fmt.Println("Previo tablero[0][1]:", previoA)
+    fmt.Println("Previo tablero[3][4]:", previoB)
+    fmt.Println("Previo tablero[4][2]:", previoC)
+    fmt.Println("Tablero modificado:", tablero)
+    fmt.Println("Extraidos:", extraidos)
+
+    if previoA == 10 && previoB == 35 && previoC == 77 && tablero[0][1] == 500 && tablero[3][4] == 350 && tablero[4][2] == 770 && extraidos[0] == 500 && extraidos[1] == 100 && extraidos[2] == 770 && extraidos[3] == 6 {
+        puntajeAccesoMulti = 6
+    }
+    total = total + puntajeAccesoMulti
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Funcion slices.Index (2 puntos)")
+    codigos := []int{30, 60, 90, 120, 150, 180}
+    indiceA := slices.Index(codigos, 120)
+    indiceB := slices.Index(codigos, 75)
+
+    fmt.Println("Codigos:", codigos)
+    fmt.Println("Indice de 120:", indiceA)
+    fmt.Println("Indice de 75:", indiceB)
+
+    if indiceA == 3 && indiceB == -1 {
+        puntajeIndex = 2
+    }
+    total = total + puntajeIndex
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Funcion strings.Join (2 puntos)")
+    unido1 := strings.Join(nombres, "|")
+    etapas := []string{"analisis", "diseno", "pruebas", "entrega"}
+    unido2 := strings.Join(etapas, " -> ")
+
+    fmt.Println("Join nombres:", unido1)
+    fmt.Println("Join etapas:", unido2)
+
+    if unido1 == "Ana|LUIS|Marta|Diego" && unido2 == "analisis -> diseno -> pruebas -> entrega" {
+        puntajeJoin = 2
+    }
+    total = total + puntajeJoin
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Funcion len (2 puntos)")
+    lenNumeros := len(numeros)
+    lenTemperaturas := len(temperaturas)
+    lenSinDatos := len(sinDatos)
+    lenTablero := len(tablero)
+
+    fmt.Println("len(numeros):", lenNumeros)
+    fmt.Println("len(temperaturas):", lenTemperaturas)
+    fmt.Println("len(sinDatos):", lenSinDatos)
+    fmt.Println("len(tablero):", lenTablero)
+
+    if lenNumeros == 6 && lenTemperaturas == 4 && lenSinDatos == 0 && lenTablero == 5 {
+        puntajeLen = 2
+    }
+    total = total + puntajeLen
+
+    fmt.Println("")
+    fmt.Println(">>> Evaluando: Funcion append (5 puntos)")
+    primos := []int{2, 3, 5, 7}
+    primos = append(primos, 11)
+    primos = append(primos, 13)
+    primos = append(primos, 17)
+
+    bitacora := []string{"inicio"}
+    bitacora = append(bitacora, "carga")
+    bitacora = append(bitacora, "proceso")
+    bitacora = append(bitacora, "validacion")
+    bitacora = append(bitacora, "cierre")
+
+    fmt.Println("Primos:", primos)
+    fmt.Println("Bitacora:", bitacora)
+
+    if primos[4] == 11 && primos[5] == 13 && primos[6] == 17 && bitacora[1] == "carga" && bitacora[4] == "cierre" {
+        puntajeAppend = 5
+    }
+    total = total + puntajeAppend
+
+    fmt.Println("")
+    fmt.Println("==============================================================")
+    fmt.Println("TABLA DE PUNTEO - SLICES (PRUEBA V2)")
+    fmt.Println("==============================================================")
+    fmt.Println("| Rubro                          | Valor | Obtenido |")
+    fmt.Println("| Creacion de slices             | 5     |", puntajeCreacion, "|")
+    fmt.Println("| Acceso de Elementos            | 4     |", puntajeAcceso, "|")
+    fmt.Println("| Array Multidimensional         | 6     |", puntajeArrayMulti, "|")
+    fmt.Println("| Acceso Array Multidimensional  | 6     |", puntajeAccesoMulti, "|")
+    fmt.Println("| Funcion slices.Index           | 2     |", puntajeIndex, "|")
+    fmt.Println("| Funcion strings.Join           | 2     |", puntajeJoin, "|")
+    fmt.Println("| Funcion len                    | 2     |", puntajeLen, "|")
+    fmt.Println("| Funcion append                 | 5     |", puntajeAppend, "|")
+    fmt.Println("==============================================================")
+    fmt.Println("| TOTAL                          | 32    |", total, "|")
+    fmt.Println("==============================================================")
+}

@@ -1,0 +1,150 @@
+struct Chip {
+string serie;
+float64 frecuencia;
+bool activo;
+}
+
+struct Computadora {
+string nombre;
+int nucleos;
+Chip chip;
+}
+
+struct Laboratorio {
+string edificio;
+string encargado;
+int salon;
+bool disponible;
+Computadora equipo;
+}
+
+func main() {
+fmt.Println("==============================================================")
+fmt.Println("PRUEBA ALTERNA - EVALUACION AUTOMATICA DE STRUCTS")
+fmt.Println("Seccion evaluada: Structs (20 puntos)")
+fmt.Println("Nivel maximo de anidamiento usado: 3")
+fmt.Println("==============================================================")
+
+puntajeDeclaracion := 0
+puntajeInstanciacion := 0
+puntajeAsignacionPrimitivos := 0
+puntajeAccesoPrimitivos := 0
+puntajeAsignacionAnidados := 0
+puntajeAccesoAnidados := 0
+total := 0
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Declaracion (4 puntos)")
+Chip chipBase = { serie: "CH-101", frecuencia: 3.2, activo: true }
+Computadora pcBase = { nombre: "Atlas", nucleos: 8, chip: chipBase }
+Laboratorio labBase = { edificio: "Torre Norte", encargado: "Marcos", salon: 305, disponible: false, equipo: pcBase }
+
+fmt.Println("Chip base:", chipBase)
+fmt.Println("PC base:", pcBase)
+fmt.Println("Laboratorio base:", labBase)
+
+if chipBase.serie == "CH-101" && chipBase.frecuencia == 3.2 && chipBase.activo == true && pcBase.nombre == "Atlas" && pcBase.nucleos == 8 && labBase.edificio == "Torre Norte" && labBase.encargado == "Marcos" && labBase.salon == 305 && labBase.disponible == false {
+puntajeDeclaracion = 4
+}
+total = total + puntajeDeclaracion
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Instanciacion (4 puntos)")
+Chip chipPrueba = { serie: "ZX-909", frecuencia: 4.75, activo: false }
+Computadora pcPrueba = { nombre: "Nebula", nucleos: 16, chip: chipPrueba }
+Laboratorio area = { edificio: "Modulo Sur", encargado: "Elena", salon: 112, disponible: true, equipo: pcPrueba }
+
+fmt.Println("Chip prueba:", chipPrueba)
+fmt.Println("PC prueba:", pcPrueba)
+fmt.Println("Area:", area)
+
+if chipPrueba.serie == "ZX-909" && chipPrueba.frecuencia == 4.75 && chipPrueba.activo == false && pcPrueba.nombre == "Nebula" && pcPrueba.nucleos == 16 && area.edificio == "Modulo Sur" && area.encargado == "Elena" && area.salon == 112 && area.disponible == true {
+puntajeInstanciacion = 4
+}
+total = total + puntajeInstanciacion
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Asignacion a propiedades de tipos primitivos (4 puntos)")
+chipBase.serie = "CH-500"
+chipBase.frecuencia = 5.6
+pcBase.nucleos = 12
+area.encargado = "ELENA R."
+area.disponible = false
+
+fmt.Println("Chip base modificado:", chipBase)
+fmt.Println("PC base modificada:", pcBase)
+fmt.Println("Area modificada:", area)
+
+if chipBase.serie == "CH-500" && chipBase.frecuencia == 5.6 && pcBase.nucleos == 12 && area.encargado == "ELENA R." && area.disponible == false {
+puntajeAsignacionPrimitivos = 4
+}
+total = total + puntajeAsignacionPrimitivos
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso a propiedades de tipos primitivos (3 puntos)")
+var lecturaSerie string = chipBase.serie
+var lecturaFrecuencia float64 = chipBase.frecuencia
+var lecturaNombre string = pcPrueba.nombre
+var lecturaSalon int = area.salon
+var lecturaDisponible bool = area.disponible
+
+fmt.Println("lecturaSerie:", lecturaSerie)
+fmt.Println("lecturaFrecuencia:", lecturaFrecuencia)
+fmt.Println("lecturaNombre:", lecturaNombre)
+fmt.Println("lecturaSalon:", lecturaSalon)
+fmt.Println("lecturaDisponible:", lecturaDisponible)
+
+if lecturaSerie == "CH-500" && lecturaFrecuencia == 5.6 && lecturaNombre == "Nebula" && lecturaSalon == 112 && lecturaDisponible == false {
+puntajeAccesoPrimitivos = 3
+}
+total = total + puntajeAccesoPrimitivos
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Asignacion a propiedades dentro de structs (3 puntos)")
+area.equipo.nombre = "Nebula-X"
+area.equipo.nucleos = 24
+area.equipo.chip.serie = "UL-700"
+area.equipo.chip.frecuencia = 6.1
+area.equipo.chip.activo = true
+
+fmt.Println("Area con anidamiento modificado:", area)
+
+if area.equipo.nombre == "Nebula-X" && area.equipo.nucleos == 24 && area.equipo.chip.serie == "UL-700" && area.equipo.chip.frecuencia == 6.1 && area.equipo.chip.activo == true {
+puntajeAsignacionAnidados = 3
+}
+total = total + puntajeAsignacionAnidados
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso a propiedades dentro de structs anidados (2 puntos)")
+var nombreAnidado string = area.equipo.nombre
+var nucleosAnidado int = area.equipo.nucleos
+var serieAnidada string = area.equipo.chip.serie
+var frecuenciaAnidada float64 = area.equipo.chip.frecuencia
+var activoAnidado bool = area.equipo.chip.activo
+
+fmt.Println("nombreAnidado:", nombreAnidado)
+fmt.Println("nucleosAnidado:", nucleosAnidado)
+fmt.Println("serieAnidada:", serieAnidada)
+fmt.Println("frecuenciaAnidada:", frecuenciaAnidada)
+fmt.Println("activoAnidado:", activoAnidado)
+
+if nombreAnidado == "Nebula-X" && nucleosAnidado == 24 && serieAnidada == "UL-700" && frecuenciaAnidada == 6.1 && activoAnidado == true {
+puntajeAccesoAnidados = 2
+}
+total = total + puntajeAccesoAnidados
+
+fmt.Println("")
+fmt.Println("==============================================================")
+fmt.Println("TABLA DE PUNTEO - STRUCTS (PRUEBA V2)")
+fmt.Println("==============================================================")
+fmt.Println("| Rubro                                      | Valor | Obtenido |")
+fmt.Println("| Declaracion                                | 4     |", puntajeDeclaracion, "|")
+fmt.Println("| Instanciacion                              | 4     |", puntajeInstanciacion, "|")
+fmt.Println("| Asignacion propiedades primitivas          | 4     |", puntajeAsignacionPrimitivos, "|")
+fmt.Println("| Acceso propiedades primitivas              | 3     |", puntajeAccesoPrimitivos, "|")
+fmt.Println("| Asignacion en structs anidados             | 3     |", puntajeAsignacionAnidados, "|")
+fmt.Println("| Acceso en structs anidados                 | 2     |", puntajeAccesoAnidados, "|")
+fmt.Println("==============================================================")
+fmt.Println("| TOTAL                                      | 20    |", total, "|")
+fmt.Println("==============================================================")
+}
