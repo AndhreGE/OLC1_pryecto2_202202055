@@ -24,7 +24,7 @@ func main() {
     {
         base = base + control
         control := 20
-        copiaBloque1 = control
+        copiaBloque1 = control;
         {
             control := 3
             copiaBloque2 = control

@@ -407,6 +407,10 @@ statement
         { $$ = $1; }
     | typed_decl
         { $$ = $1; }
+    | short_decl
+        { $$ = $1; }
+    | assignment
+        { $$ = $1; }
     | identifier_statement
         { $$ = $1; }
     | if_stmt
