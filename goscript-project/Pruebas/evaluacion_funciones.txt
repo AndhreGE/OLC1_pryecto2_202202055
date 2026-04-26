@@ -1,0 +1,343 @@
+func obtenerCodigoBase() string {
+    return "P2-OLC1-FUNCIONES"
+}
+
+func sumarAjustada(a int, b int) int {
+    var resultado int = a + b
+    resultado = resultado + 5
+    return resultado
+}
+
+func formarEtiqueta(nombre string, nivel int) string {
+    return nombre + "-N" + nivel
+}
+
+func factorial(n int) int {
+    if n == 0 {
+        return 1
+    }
+    return n * factorial(n - 1)
+}
+
+func fibonacci(n int) int {
+    if n == 0 {
+        return 0
+    } else if n == 1 {
+        return 1
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+func ackermann(m int, n int) int {
+    if m == 0 {
+        return n + 1
+    } else if n == 0 {
+        return ackermann(m - 1, 1)
+    }
+    return ackermann(m - 1, ackermann(m, n - 1))
+}
+
+func hanoi(n int, origen string, auxiliar string, destino string, movimientos []string) []string {
+    if n == 1 {
+        movimientos = append(movimientos, origen + "->" + destino)
+        return movimientos
+    }
+
+    movimientos = hanoi(n - 1, origen, destino, auxiliar, movimientos)
+    movimientos = append(movimientos, origen + "->" + destino)
+    movimientos = hanoi(n - 1, auxiliar, origen, destino, movimientos)
+    return movimientos
+}
+
+func sumarSlice(datos []int) int {
+    var total int = 0
+    for i, valor := range datos {
+        total = total + valor
+    }
+    return total
+}
+
+func contarMayoresQue(datos []int, limite int) int {
+    var cantidad int = 0
+    for i, valor := range datos {
+        if valor > limite {
+            cantidad = cantidad + 1
+        }
+    }
+    return cantidad
+}
+
+func concatenarTokens(tokens []string) string {
+    var salida string = ""
+    for i, valor := range tokens {
+        if i == 0 {
+            salida = salida + valor
+        } else {
+            salida = salida + "-" + valor
+        }
+    }
+    return salida
+}
+
+func duplicarSlice(datos []int) []int {
+    var respuesta []int
+    for i, valor := range datos {
+        respuesta = append(respuesta, valor * 2)
+    }
+    return respuesta
+}
+
+func crearSerie(inicio int, cantidad int) []int {
+    var serie []int
+    var actual int = inicio
+    for i := 0; i < cantidad; i++ {
+        serie = append(serie, actual)
+        actual = actual + 1
+    }
+    return serie
+}
+
+func filtrarPares(datos []int) []int {
+    var pares []int
+    for i, valor := range datos {
+        if valor % 2 == 0 {
+            pares = append(pares, valor)
+        }
+    }
+    return pares
+}
+
+func main() {
+    var pSinParametros int = 0
+    var pConParametrosA int = 0
+    var pConParametrosB int = 0
+
+    var pFib int = 0
+    var pAck int = 0
+    var pHanoi int = 0
+    var pFact int = 0
+
+    var pAtoi int = 0
+    var pParseFloat int = 0
+    var pReflect int = 0
+
+    var pSliceParametro1 int = 0
+    var pSliceParametro2 int = 0
+    var pSliceParametro3 int = 0
+
+    var pSliceRetorno1 int = 0
+    var pSliceRetorno2 int = 0
+    var pSliceRetorno3 int = 0
+
+    fmt.Println("==============================================================")
+    fmt.Println("EVALUACION AUTOMATICA - FUNCIONES")
+    fmt.Println("==============================================================")
+    fmt.Println()
+
+    fmt.Println("Evaluando: Funciones no recursivas sin parametros")
+    codigoBase := obtenerCodigoBase()
+    fmt.Println("Resultado obtenido:", codigoBase)
+    if codigoBase == "P2-OLC1-FUNCIONES" {
+        pSinParametros = 1
+        fmt.Println("Resultado correcto -> +1")
+    } else {
+        fmt.Println("Resultado incorrecto -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: Funciones no recursivas con parametros")
+    resultadoSuma := sumarAjustada(12, 8)
+    resultadoEtiqueta := formarEtiqueta("LAMBDA", 7)
+    fmt.Println("sumarAjustada(12, 8) =", resultadoSuma)
+    fmt.Println("formarEtiqueta(\"LAMBDA\", 7) =", resultadoEtiqueta)
+
+    if resultadoSuma == 25 {
+        pConParametrosA = 1
+        fmt.Println("Prueba 1 correcta -> +1")
+    } else {
+        fmt.Println("Prueba 1 incorrecta -> +0")
+    }
+
+    if resultadoEtiqueta == "LAMBDA-N7" {
+        pConParametrosB = 1
+        fmt.Println("Prueba 2 correcta -> +1")
+    } else {
+        fmt.Println("Prueba 2 incorrecta -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: Funciones recursivas")
+    valorFib := fibonacci(8)
+    valorAck := ackermann(2, 2)
+    valorFact := factorial(6)
+    var movimientosHanoi []string
+    movimientosHanoi = hanoi(3, "A", "B", "C", movimientosHanoi)
+
+    fmt.Println("fibonacci(8) =", valorFib)
+    fmt.Println("ackermann(2, 2) =", valorAck)
+    fmt.Println("factorial(6) =", valorFact)
+    fmt.Println("Movimientos Hanoi:", movimientosHanoi)
+
+    if valorFib == 21 {
+        pFib = 1
+        fmt.Println("Fibonacci correcto -> +1")
+    } else {
+        fmt.Println("Fibonacci incorrecto -> +0")
+    }
+
+    if valorAck == 7 {
+        pAck = 1
+        fmt.Println("Ackermann correcto -> +1")
+    } else {
+        fmt.Println("Ackermann incorrecto -> +0")
+    }
+
+    if valorFact == 720 {
+        pFact = 1
+        fmt.Println("Factorial correcto -> +1")
+    } else {
+        fmt.Println("Factorial incorrecto -> +0")
+    }
+
+    if len(movimientosHanoi) == 7 && movimientosHanoi[0] == "A->C" && movimientosHanoi[1] == "A->B" && movimientosHanoi[3] == "A->C" && movimientosHanoi[6] == "A->C" {
+        pHanoi = 1
+        fmt.Println("Hanoi correcto -> +1")
+    } else {
+        fmt.Println("Hanoi incorrecto -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: strconv.Atoi y strconv.ParseFloat")
+    numeroConvertido := strconv.Atoi("2048")
+    decimalConvertido := strconv.ParseFloat("35.75")
+    fmt.Println("strconv.Atoi(\"2048\") =", numeroConvertido)
+    fmt.Println("strconv.ParseFloat(\"35.75\") =", decimalConvertido)
+
+    if numeroConvertido == 2048 {
+        pAtoi = 1
+        fmt.Println("Atoi correcto -> +1")
+    } else {
+        fmt.Println("Atoi incorrecto -> +0")
+    }
+
+    if decimalConvertido == 35.75 {
+        pParseFloat = 1
+        fmt.Println("ParseFloat correcto -> +1")
+    } else {
+        fmt.Println("ParseFloat incorrecto -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: reflect.TypeOf()")
+    muestraEntera := 0
+    muestraDecimal := 0.0
+    muestraSlice := []int{99}
+
+    tipoEntero := reflect.TypeOf(numeroConvertido)
+    tipoDecimal := reflect.TypeOf(decimalConvertido)
+    tipoSlice := reflect.TypeOf(muestraSlice)
+
+    fmt.Println("Tipo entero:", tipoEntero)
+    fmt.Println("Tipo decimal:", tipoDecimal)
+    fmt.Println("Tipo slice:", tipoSlice)
+
+    if tipoEntero == reflect.TypeOf(muestraEntera) && tipoDecimal == reflect.TypeOf(muestraDecimal) && tipoSlice == reflect.TypeOf(muestraSlice) {
+        pReflect = 1
+        fmt.Println("reflect.TypeOf correcto -> +1")
+    } else {
+        fmt.Println("reflect.TypeOf incorrecto -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: Slice como parametro")
+    datosA := []int{4, 7, 10, 3}
+    datosB := []int{9, 2, 11, 5, 7}
+    datosTexto := []string{"sol", "luna", "mar"}
+
+    sumaDatosA := sumarSlice(datosA)
+    mayoresDatosB := contarMayoresQue(datosB, 6)
+    textoUnido := concatenarTokens(datosTexto)
+
+    fmt.Println("sumarSlice([4, 7, 10, 3]) =", sumaDatosA)
+    fmt.Println("contarMayoresQue([9, 2, 11, 5, 7], 6) =", mayoresDatosB)
+    fmt.Println("concatenarTokens([sol, luna, mar]) =", textoUnido)
+
+    if sumaDatosA == 24 {
+        pSliceParametro1 = 1
+        fmt.Println("Prueba slice parametro 1 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice parametro 1 incorrecta -> +0")
+    }
+
+    if mayoresDatosB == 3 {
+        pSliceParametro2 = 1
+        fmt.Println("Prueba slice parametro 2 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice parametro 2 incorrecta -> +0")
+    }
+
+    if textoUnido == "sol-luna-mar" {
+        pSliceParametro3 = 1
+        fmt.Println("Prueba slice parametro 3 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice parametro 3 incorrecta -> +0")
+    }
+    fmt.Println()
+
+    fmt.Println("Evaluando: Slice como retorno")
+    duplicado := duplicarSlice([]int{2, 5, 7})
+    serie := crearSerie(9, 4)
+    pares := filtrarPares([]int{1, 2, 3, 4, 6, 9})
+
+    fmt.Println("duplicarSlice([2, 5, 7]) =", duplicado)
+    fmt.Println("crearSerie(9, 4) =", serie)
+    fmt.Println("filtrarPares([1, 2, 3, 4, 6, 9]) =", pares)
+
+    if len(duplicado) == 3 && duplicado[0] == 4 && duplicado[1] == 10 && duplicado[2] == 14 {
+        pSliceRetorno1 = 1
+        fmt.Println("Prueba slice retorno 1 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice retorno 1 incorrecta -> +0")
+    }
+
+    if len(serie) == 4 && serie[0] == 9 && serie[1] == 10 && serie[2] == 11 && serie[3] == 12 {
+        pSliceRetorno2 = 1
+        fmt.Println("Prueba slice retorno 2 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice retorno 2 incorrecta -> +0")
+    }
+
+    if len(pares) == 3 && pares[0] == 2 && pares[1] == 4 && pares[2] == 6 {
+        pSliceRetorno3 = 1
+        fmt.Println("Prueba slice retorno 3 correcta -> +1")
+    } else {
+        fmt.Println("Prueba slice retorno 3 incorrecta -> +0")
+    }
+    fmt.Println()
+
+    funcionesConParametros := pConParametrosA + pConParametrosB
+    funcionesRecursivas := pFib + pAck + pHanoi + pFact
+    sliceComoParametro := pSliceParametro1 + pSliceParametro2 + pSliceParametro3
+    sliceComoRetorno := pSliceRetorno1 + pSliceRetorno2 + pSliceRetorno3
+
+    total := pSinParametros + funcionesConParametros + funcionesRecursivas + pAtoi + pParseFloat + pReflect + sliceComoParametro + sliceComoRetorno
+
+    fmt.Println("==============================================================")
+    fmt.Println("TABLA FINAL DE CALIFICACION")
+    fmt.Println("==============================================================")
+    fmt.Println("| Rubro                                       | Valor | Obtenido |")
+    fmt.Println("| Funciones no recursivas sin parametros      | 1     | " + pSinParametros + " |")
+    fmt.Println("| Funciones no recursivas con parametros      | 2     | " + funcionesConParametros + " |")
+    fmt.Println("| Funciones recursivas                        | 4     | " + funcionesRecursivas + " |")
+    fmt.Println("|   - Fibonacci                               | 1     | " + pFib + " |")
+    fmt.Println("|   - Ackermann                               | 1     | " + pAck + " |")
+    fmt.Println("|   - Hanoi                                   | 1     | " + pHanoi + " |")
+    fmt.Println("|   - Factorial                               | 1     | " + pFact + " |")
+    fmt.Println("| strconv.Atoi                                | 1     | " + pAtoi + " |")
+    fmt.Println("| strconv.ParseFloat                          | 1     | " + pParseFloat + " |")
+    fmt.Println("| reflect.TypeOf()                            | 1     | " + pReflect + " |")
+    fmt.Println("| Slice como parametro                        | 3     | " + sliceComoParametro + " |")
+    fmt.Println("| Slice como retorno                          | 3     | " + sliceComoRetorno + " |")
+    fmt.Println("| TOTAL                                       | 16    | " + total + " |")
+    fmt.Println("==============================================================")
+}

@@ -1,0 +1,192 @@
+func main() {
+fmt.Println("==============================================================")
+fmt.Println("EVALUACION AUTOMATICA - SLICES")
+fmt.Println("Seccion evaluada: Slices (32 puntos)")
+fmt.Println("==============================================================")
+
+puntajeCreacion := 0
+puntajeAcceso := 0
+puntajeArrayMulti := 0
+puntajeAccesoMulti := 0
+puntajeIndex := 0
+puntajeJoin := 0
+puntajeLen := 0
+puntajeAppend := 0
+total := 0
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Creacion de slices (5 puntos)")
+enteros := []int{8, 13, 21, 34, 55}
+decimales := []float64{1.25, 2.5, 5.0, 10.0}
+palabras := []string{"sol", "luna", "mar", "rio"}
+banderas := []bool{true, false, true, false}
+runas := []rune{'G', 'S', 'T'}
+vacio := []int{}
+
+fmt.Println("Slice enteros:", enteros)
+fmt.Println("Slice decimales:", decimales)
+fmt.Println("Slice palabras:", palabras)
+fmt.Println("Slice banderas:", banderas)
+fmt.Println("Slice runas:", runas)
+fmt.Println("Slice vacio:", vacio)
+
+if enteros[0] == 8 && enteros[2] == 21 && enteros[4] == 55 && decimales[1] == 2.5 && palabras[3] == "rio" && banderas[1] == false && runas[2] == 'T' {
+puntajeCreacion = 5
+}
+total = total + puntajeCreacion
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso de Elementos (4 puntos)")
+valorAntes1 := enteros[2]
+valorAntes2 := palabras[0]
+valorAntes3 := runas[1]
+
+enteros[2] = 144
+palabras[0] = "Sol"
+runas[1] = 'X'
+
+fmt.Println("Valor previo enteros[2]:", valorAntes1)
+fmt.Println("Valor previo palabras[0]:", valorAntes2)
+fmt.Println("Valor previo runas[1]:", valorAntes3)
+fmt.Println("Enteros modificados:", enteros)
+fmt.Println("Palabras modificadas:", palabras)
+fmt.Println("Runas modificadas:", runas)
+
+if valorAntes1 == 21 && valorAntes2 == "sol" && valorAntes3 == 'S' && enteros[2] == 144 && palabras[0] == "Sol" && runas[1] == 'X' {
+puntajeAcceso = 4
+}
+total = total + puntajeAcceso
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Array Multidimensional (6 puntos)")
+filaExtra := []int{5, 8, 13}
+
+matriz := [][]int{
+{2, 4, 6, 8},
+{1, 3, 5, 7, 9},
+{10, 20},
+}
+matriz = append(matriz, filaExtra)
+
+matrizTexto := [][]string{
+{"A", "B"},
+{"C", "D", "E"},
+{"F"},
+}
+
+fmt.Println("Matriz numerica:", matriz)
+fmt.Println("Matriz de texto:", matrizTexto)
+
+if matriz[0][0] == 2 && matriz[1][4] == 9 && matriz[2][1] == 20 && matriz[3][2] == 13 && matrizTexto[0][1] == "B" && matrizTexto[1][2] == "E" {
+puntajeArrayMulti = 6
+}
+total = total + puntajeArrayMulti
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Acceso Array Multidimensional (6 puntos)")
+originalA := matriz[1][3]
+originalB := matriz[2][0]
+originalC := matriz[3][1]
+
+matriz[1][3] = 70
+matriz[2][0] = 90
+matriz[3][1] = 800
+
+seleccion := []int{}
+seleccion = append(seleccion, matriz[0][3])
+seleccion = append(seleccion, matriz[1][1])
+seleccion = append(seleccion, matriz[3][1])
+
+fmt.Println("Original matriz[1][3]:", originalA)
+fmt.Println("Original matriz[2][0]:", originalB)
+fmt.Println("Original matriz[3][1]:", originalC)
+fmt.Println("Matriz modificada:", matriz)
+fmt.Println("Seleccion desde la matriz:", seleccion)
+
+if originalA == 7 && originalB == 10 && originalC == 8 && matriz[1][3] == 70 && matriz[2][0] == 90 && matriz[3][1] == 800 && seleccion[0] == 8 && seleccion[1] == 3 && seleccion[2] == 800 {
+puntajeAccesoMulti = 6
+}
+total = total + puntajeAccesoMulti
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Funcion slices.Index (2 puntos)")
+busqueda := []int{4, 8, 15, 16, 23, 42, 16}
+indiceUno := slices.Index(busqueda, 16)
+indiceDos := slices.Index(busqueda, 999)
+
+fmt.Println("Slice para busqueda:", busqueda)
+fmt.Println("Indice de 16:", indiceUno)
+fmt.Println("Indice de 999:", indiceDos)
+
+if indiceUno == 3 && indiceDos == -1 {
+puntajeIndex = 2
+}
+total = total + puntajeIndex
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Funcion strings.Join (2 puntos)")
+frase := strings.Join(palabras, "-")
+codigo := []string{"GS", "2026", "P2", "Slices"}
+textoCodigo := strings.Join(codigo, "::")
+
+fmt.Println("Frase unida:", frase)
+fmt.Println("Codigo unido:", textoCodigo)
+
+if frase == "Sol-luna-mar-rio" && textoCodigo == "GS::2026::P2::Slices" {
+puntajeJoin = 2
+}
+total = total + puntajeJoin
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Funcion len (2 puntos)")
+tamEnteros := len(enteros)
+tamPalabras := len(palabras)
+tamVacio := len(vacio)
+tamBusqueda := len(busqueda)
+
+fmt.Println("len(enteros):", tamEnteros)
+fmt.Println("len(palabras):", tamPalabras)
+fmt.Println("len(vacio):", tamVacio)
+fmt.Println("len(busqueda):", tamBusqueda)
+
+if tamEnteros == 5 && tamPalabras == 4 && tamVacio == 0 && tamBusqueda == 7 {
+puntajeLen = 2
+}
+total = total + puntajeLen
+
+fmt.Println("")
+fmt.Println(">>> Evaluando: Funcion append (5 puntos)")
+pares := []int{2, 4, 6}
+pares = append(pares, 8)
+pares = append(pares, 10)
+pares = append(pares, 12)
+
+etiquetas := []string{"inicio", "proceso"}
+etiquetas = append(etiquetas, "revision")
+etiquetas = append(etiquetas, "fin")
+
+fmt.Println("Slice pares:", pares)
+fmt.Println("Slice etiquetas:", etiquetas)
+
+if pares[0] == 2 && pares[3] == 8 && pares[5] == 12 && etiquetas[2] == "revision" && etiquetas[3] == "fin" {
+puntajeAppend = 5
+}
+total = total + puntajeAppend
+
+fmt.Println("")
+fmt.Println("==============================================================")
+fmt.Println("TABLA DE PUNTEO - SLICES")
+fmt.Println("==============================================================")
+fmt.Println("| Rubro                          | Valor | Obtenido |")
+fmt.Println("| Creacion de slices            | 5     |", puntajeCreacion, "|")
+fmt.Println("| Acceso de Elementos           | 4     |", puntajeAcceso, "|")
+fmt.Println("| Array Multidimensional        | 6     |", puntajeArrayMulti, "|")
+fmt.Println("| Acceso Array Multidimensional | 6     |", puntajeAccesoMulti, "|")
+fmt.Println("| Funcion slices.Index          | 2     |", puntajeIndex, "|")
+fmt.Println("| Funcion strings.Join          | 2     |", puntajeJoin, "|")
+fmt.Println("| Funcion len                   | 2     |", puntajeLen, "|")
+fmt.Println("| Funcion append                | 5     |", puntajeAppend, "|")
+fmt.Println("==============================================================")
+fmt.Println("| TOTAL                         | 32    |", total, "|")
+fmt.Println("==============================================================")
+}

@@ -1,0 +1,262 @@
+func main() {
+fmt.Println("====================================================")
+fmt.Println("PRUEBA ALTERNA - FUNCIONALIDADES INTERMEDIAS")
+fmt.Println("====================================================")
+fmt.Println("Este archivo evalua: entornos, if/else, for while,")
+fmt.Println("for clasico, for range, switch/case, break y continue")
+fmt.Println("")
+
+var puntosEntornos int = 0
+var puntosIfElse int = 0
+var puntosForWhile int = 0
+var puntosForClasico int = 0
+var puntosForRange int = 0
+var puntosSwitch int = 0
+var puntosBreak int = 0
+var puntosContinue int = 0
+var total int = 0
+
+fmt.Println(">> Evaluando manejo de entornos")
+var base int = 12
+var copiaBase int = base
+var etiqueta string = "externo"
+var acumulado int = 0
+
+{
+    var base int = 30
+    acumulado = acumulado + base
+    etiqueta = etiqueta + "-editado"
+
+    {
+        var base int = 7
+        acumulado = acumulado + base
+        fmt.Println("Base del bloque mas interno:", base)
+    }
+
+    fmt.Println("Base del bloque intermedio:", base)
+}
+
+fmt.Println("Base del bloque externo:", base)
+
+if base == 12 && copiaBase == 12 && acumulado == 37 && etiqueta == "externo-editado" {
+    puntosEntornos = 2
+}
+
+total = total + puntosEntornos
+fmt.Println("Punteo manejo de entornos:", puntosEntornos, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando if / else")
+var temperatura int = 27
+var humedad bool = true
+var estadoClima string = ""
+
+if temperatura > 30 {
+    estadoClima = "muy caluroso"
+} else if temperatura >= 20 {
+    if humedad {
+        estadoClima = "templado humedo"
+    } else {
+        estadoClima = "templado seco"
+    }
+} else {
+    estadoClima = "frio"
+}
+
+fmt.Println("Estado del clima:", estadoClima)
+
+if estadoClima == "templado humedo" {
+    puntosIfElse = 2
+}
+
+total = total + puntosIfElse
+fmt.Println("Punteo if / else:", puntosIfElse, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando for tipo while con figura")
+var filaWhile int = 1
+var figuraWhile string = ""
+var sumaCaracteresWhile int = 0
+
+for filaWhile <= 4 {
+    var columnaWhile int = 1;
+    for columnaWhile <= filaWhile {
+        figuraWhile = figuraWhile + "#";
+        sumaCaracteresWhile = sumaCaracteresWhile + 1;
+        columnaWhile++;
+    }
+    figuraWhile = figuraWhile + "\n";
+    filaWhile++;
+}
+
+var esperadaWhile string = "#\n##\n###\n####\n"
+fmt.Println(figuraWhile)
+
+if figuraWhile == esperadaWhile && sumaCaracteresWhile == 10 {
+    puntosForWhile = 2
+}
+
+total = total + puntosForWhile
+fmt.Println("Punteo for tipo while:", puntosForWhile, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando for clasico con figura")
+var figuraClasica string = ""
+
+for i := 0; i < 3; i++ {
+    for j := 0; j < 5; j++ {
+        if i == 0 || i == 2 || j == 0 || j == 4 {
+            figuraClasica = figuraClasica + "*"
+        } else {
+            figuraClasica = figuraClasica + " "
+        }
+    }
+    figuraClasica = figuraClasica + "\n"
+}
+
+var esperadaClasica string = "*****\n*   *\n*****\n"
+fmt.Println(figuraClasica)
+
+if figuraClasica == esperadaClasica {
+    puntosForClasico = 2
+}
+
+total = total + puntosForClasico
+fmt.Println("Punteo for clasico:", puntosForClasico, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando for range")
+datos := []int{4, 7, 10, 13}
+var sumaIndices int = 0
+var sumaValores int = 0
+var reporteRange string = ""
+
+for indice, valor := range datos {
+    sumaIndices = sumaIndices + indice
+    sumaValores = sumaValores + valor
+
+    if indice == 0 {
+        reporteRange = reporteRange + "I" + indice + "=" + valor
+    } else {
+        reporteRange = reporteRange + "|I" + indice + "=" + valor
+    }
+}
+
+fmt.Println("Reporte range:", reporteRange)
+fmt.Println("Suma indices:", sumaIndices)
+fmt.Println("Suma valores:", sumaValores)
+
+if sumaIndices == 6 && sumaValores == 34 && reporteRange == "I0=4|I1=7|I2=10|I3=13" {
+    puntosForRange = 2
+}
+
+total = total + puntosForRange
+fmt.Println("Punteo for range:", puntosForRange, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando switch / case")
+var codigo int = 8
+var mensajeSwitch string = ""
+
+switch codigo % 4 {
+case 0:
+    mensajeSwitch = "grupo-cero"
+case 1:
+    mensajeSwitch = "grupo-uno"
+case 2:
+    mensajeSwitch = "grupo-dos"
+default:
+    mensajeSwitch = "grupo-tres"
+}
+
+fmt.Println("Resultado switch:", mensajeSwitch)
+
+if mensajeSwitch == "grupo-cero" {
+    puntosSwitch = 2
+}
+
+total = total + puntosSwitch
+fmt.Println("Punteo switch / case:", puntosSwitch, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando break")
+var numeroBreak int = 1
+var sumaBreak int = 0
+var encontradoBreak int = 0
+
+for numeroBreak <= 10 {
+    if numeroBreak * numeroBreak > 30 {
+        encontradoBreak = numeroBreak
+        break
+    }
+
+    sumaBreak = sumaBreak + numeroBreak
+    numeroBreak++
+}
+
+fmt.Println("Primer numero cuyo cuadrado supera 30:", encontradoBreak)
+fmt.Println("Suma acumulada antes del break:", sumaBreak)
+
+if encontradoBreak == 6 && sumaBreak == 15 {
+    puntosBreak = 2
+}
+
+total = total + puntosBreak
+fmt.Println("Punteo break:", puntosBreak, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Evaluando continue")
+var cadenaImpares string = ""
+var sumaImpares int = 0
+
+for k := 1; k <= 9; k++ {
+    if k % 2 == 0 {
+        continue
+    }
+
+    cadenaImpares = cadenaImpares + k
+
+    if k < 9 {
+        cadenaImpares = cadenaImpares + "-"
+    }
+
+    sumaImpares = sumaImpares + k
+}
+
+fmt.Println("Cadena de impares:", cadenaImpares)
+fmt.Println("Suma de impares:", sumaImpares)
+
+if cadenaImpares == "1-3-5-7-9" && sumaImpares == 25 {
+    puntosContinue = 2
+}
+
+total = total + puntosContinue
+fmt.Println("Punteo continue:", puntosContinue, "/ 2")
+fmt.Println("")
+
+fmt.Println(">> Pruebas auxiliares sin puntaje")
+enteroLeido := strconv.Atoi("48")
+decimalLeido := strconv.ParseFloat("19.75")
+tipoEntero := reflect.TypeOf(enteroLeido)
+tipoDecimal := reflect.TypeOf(decimalLeido)
+fmt.Println("Atoi:", enteroLeido)
+fmt.Println("ParseFloat:", decimalLeido)
+fmt.Println("TypeOf entero:", tipoEntero)
+fmt.Println("TypeOf decimal:", tipoDecimal)
+fmt.Println("")
+
+fmt.Println("====================================================")
+fmt.Println("TABLA FINAL DE PUNTEO - INTERMEDIAS (PRUEBA ALTERNA)")
+fmt.Println("====================================================")
+fmt.Println("Criterio | Punteo obtenido")
+fmt.Println("Manejo de entornos |", puntosEntornos, "/2")
+fmt.Println("If / Else |", puntosIfElse, "/2")
+fmt.Println("For Tipo While |", puntosForWhile, "/2")
+fmt.Println("For Clasico |", puntosForClasico, "/2")
+fmt.Println("For Range |", puntosForRange, "/2")
+fmt.Println("Switch/Case |", puntosSwitch, "/2")
+fmt.Println("Break |", puntosBreak, "/2")
+fmt.Println("Continue |", puntosContinue, "/2")
+fmt.Println("TOTAL |", total, "/16")
+fmt.Println("====================================================")
+}

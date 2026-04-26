@@ -407,8 +407,6 @@ statement
         { $$ = $1; }
     | typed_decl
         { $$ = $1; }
-    | assignment
-        { $$ = $1; }
     | identifier_statement
         { $$ = $1; }
     | if_stmt
@@ -503,7 +501,7 @@ for_stmt
             $3
           ]);
         }
-    | FOR expression block
+    | FOR expression_no_struct block
         {
           $$ = createNode('ForStatement', 'condition', @1, [$2, $3]);
         }
@@ -612,7 +610,7 @@ for_init_required
     ;
 
 for_condition_opt
-    : expression
+    : expression_no_struct
         { $$ = $1; }
     |
         { $$ = null; }
@@ -645,7 +643,7 @@ for_update_opt
 */
 
 switch_stmt
-    : SWITCH switch_subject '{' case_clause_list_opt default_clause_opt '}'
+    : SWITCH expression_no_struct '{' case_clause_list_opt default_clause_opt '}'
         {
           var children = [$2];
           if ($4) {
@@ -843,7 +841,10 @@ typed_decl
     ;
 
 identifier_statement
-    : IDENTIFIER DECLARE expression
+    : assignment
+        { $$ = $1; }
+
+    | IDENTIFIER DECLARE expression
         {
           $$ = createNode('ShortDeclaration', null, @1, [
             createNode('Identifier', $1, @1, []),
@@ -869,83 +870,6 @@ identifier_statement
         {
           $$ = createNode('ExpressionStatement', null, @1, [
             createNode('CallExpression', $1, @1, $3)
-          ]);
-        }
-
-    | IDENTIFIER '=' expression
-        {
-          $$ = createNode('Assignment', null, @2, [
-            createNode('Identifier', $1, @1, []),
-            $3
-          ]);
-        }
-
-    /* x += y  ==>  x = x + y */
-    | IDENTIFIER PLUS_ASSIGN expression
-        {
-          $$ = createNode('Assignment', '=', @2, [
-            createNode('Identifier', $1, @1, []),
-            createNode('BinaryExpression', '+', @2, [
-              createNode('Identifier', $1, @1, []),
-              $3
-            ])
-          ]);
-        }
-
-    /* x -= y  ==>  x = x - y */
-    | IDENTIFIER MINUS_ASSIGN expression
-        {
-          $$ = createNode('Assignment', '=', @2, [
-            createNode('Identifier', $1, @1, []),
-            createNode('BinaryExpression', '-', @2, [
-              createNode('Identifier', $1, @1, []),
-              $3
-            ])
-          ]);
-        }
-
-    | IDENTIFIER postfix_ops '=' expression
-        {
-          $$ = createNode('Assignment', null, @3, [
-            applyPostfixOps(
-              createNode('Identifier', $1, @1, []),
-              $2
-            ),
-            $4
-          ]);
-        }
-
-    /* arr[i] += y  o  persona.edad += y */
-    | IDENTIFIER postfix_ops PLUS_ASSIGN expression
-        {
-          var leftNode = applyPostfixOps(
-            createNode('Identifier', $1, @1, []),
-            $2
-          );
-
-          $$ = createNode('Assignment', '=', @3, [
-            leftNode,
-            createNode('BinaryExpression', '+', @3, [
-              cloneNode(leftNode),
-              $4
-            ])
-          ]);
-        }
-
-    /* arr[i] -= y  o  persona.edad -= y */
-    | IDENTIFIER postfix_ops MINUS_ASSIGN expression
-        {
-          var leftNode = applyPostfixOps(
-            createNode('Identifier', $1, @1, []),
-            $2
-          );
-
-          $$ = createNode('Assignment', '=', @3, [
-            leftNode,
-            createNode('BinaryExpression', '-', @3, [
-              cloneNode(leftNode),
-              $4
-            ])
           ]);
         }
 
@@ -1007,10 +931,11 @@ short_decl
 assignment
     : assignable '=' expression
         {
-          $$ = createNode('Assignment', '=', @2, [$1, $3]);
+          $$ = createNode('Assignment', '=', @2, [
+            $1,
+            $3
+          ]);
         }
-
-    /* a += b  ==>  a = a + b */
     | assignable PLUS_ASSIGN expression
         {
           $$ = createNode(
@@ -1031,8 +956,6 @@ assignment
             ]
           );
         }
-
-    /* a -= b  ==>  a = a - b */
     | assignable MINUS_ASSIGN expression
         {
           $$ = createNode(
@@ -1089,14 +1012,21 @@ anonymous_struct_literal
 
 assignable
     : IDENTIFIER
-        { $$ = createNode('Identifier', $1, @1, []); }
-    | assignable '[' expression ']'
         {
-          $$ = createNode('ArrayAccess', null, @2, [$1, $3]);
+          $$ = createNode('Identifier', $1, @1, []);
         }
-    | assignable '.' IDENTIFIER
+    | primary_expression '[' expression ']'
         {
-          $$ = createNode('FieldAccess', $3, @2, [$1]);
+          $$ = createNode('IndexAccess', null, @2, [
+            $1,
+            $3
+          ]);
+        }
+    | primary_expression '.' IDENTIFIER
+        {
+          $$ = createNode('FieldAccess', $3, @2, [
+            $1
+          ]);
         }
     ;
 
